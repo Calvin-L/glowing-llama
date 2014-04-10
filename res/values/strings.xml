@@ -4,5 +4,8 @@
     <string name="app_name">Glowing LLama</string>
     <string name="hello_world">Hello world!</string>
     <string name="action_settings">Settings</string>
+    <string name="edit_message">Placeholder text</string>
+    <string name="button_text">Button text</string>
+    <string name="title_activity_display_message">DisplayMessageActivity</string>
 
 </resources>
