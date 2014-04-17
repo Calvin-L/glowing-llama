@@ -1,21 +1,20 @@
 package org.uw.glowingllama;
 
-import android.support.v7.app.ActionBarActivity;
-import android.support.v4.app.Fragment;
-import android.content.Intent;
+import java.nio.ByteBuffer;
+import java.util.Arrays;
+
 import android.media.AudioFormat;
 import android.media.AudioManager;
-import android.media.AudioRecord;
 import android.media.AudioTrack;
-import android.media.MediaRecorder;
 import android.os.Bundle;
+import android.support.v4.app.Fragment;
+import android.support.v7.app.ActionBarActivity;
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
-import android.widget.EditText;
 
 public class MainActivity extends ActionBarActivity {
 
@@ -37,69 +36,69 @@ public class MainActivity extends ActionBarActivity {
         }
     }
 
-	@Override
-	public void onResume() {
-		super.onResume();
-
-		int buf1 = AudioRecord.getMinBufferSize(SAMPLE_RATE, AudioFormat.CHANNEL_IN_MONO, ENCODING);
-		if (buf1 == AudioRecord.ERROR_BAD_VALUE) {
-			throw new RuntimeException("Invalid sample rate or channels or encoding or something for AudioRecord");
-		}
-		if (buf1 == AudioRecord.ERROR) {
-			throw new RuntimeException("Error querying hardware for AudioRecord");
-		}
-
-		int buf2 = AudioTrack.getMinBufferSize(SAMPLE_RATE, AudioFormat.CHANNEL_OUT_MONO, ENCODING);
-		if (buf2 == AudioTrack.ERROR_BAD_VALUE) {
-			throw new RuntimeException("Invalid value for AudioTrack");
-		}
-		if (buf2 == AudioTrack.ERROR) {
-			throw new RuntimeException("Error querying hardware for AudioTrack");
-		}
-
-		Log.i("x", "Starting...");
-
-		final int bufferSize = Math.max(buf1, buf2);
-		final AudioRecord record = new AudioRecord(MediaRecorder.AudioSource.MIC, SAMPLE_RATE, AudioFormat.CHANNEL_IN_MONO, ENCODING, bufferSize);
-		final AudioTrack track = new AudioTrack(AudioManager.STREAM_MUSIC, SAMPLE_RATE, AudioFormat.CHANNEL_OUT_MONO, ENCODING, bufferSize, AudioTrack.MODE_STREAM);
-
-		Log.i("x", "Using buffer size " + bufferSize);
-
-		record.startRecording();
-		track.play();
-		echoThread = new Thread(new Runnable() {
-			@Override
-			public void run() {
-				short[] data = new short[bufferSize / 2];
-				while (true) {
-					int num_read = record.read(data, 0, data.length);
-					track.write(data, 0, num_read);
-					if (num_read > 0) {
-						short max = 0;
-						for (int i = 0; i < num_read; ++i) {
-							max = (short) Math.max(max, data[i]);
-						}
-						Log.i("x", "Read " + num_read + " samples, max=" + max);
-					}
-					try {
-						Thread.sleep(5);
-					} catch (InterruptedException e) {
-						Log.i("x", "Stopping...");
-						record.stop();
-						track.stop();
-						break;
-					}
-				}
-			}
-		});
-		echoThread.start();
-	}
-
-	@Override
-	public void onPause() {
-		super.onPause();
-		echoThread.interrupt();
-	}
+//	@Override
+//	public void onResume() {
+//		super.onResume();
+//
+//		int buf1 = AudioRecord.getMinBufferSize(SAMPLE_RATE, AudioFormat.CHANNEL_IN_MONO, ENCODING);
+//		if (buf1 == AudioRecord.ERROR_BAD_VALUE) {
+//			throw new RuntimeException("Invalid sample rate or channels or encoding or something for AudioRecord");
+//		}
+//		if (buf1 == AudioRecord.ERROR) {
+//			throw new RuntimeException("Error querying hardware for AudioRecord");
+//		}
+//
+//		int buf2 = AudioTrack.getMinBufferSize(SAMPLE_RATE, AudioFormat.CHANNEL_OUT_MONO, ENCODING);
+//		if (buf2 == AudioTrack.ERROR_BAD_VALUE) {
+//			throw new RuntimeException("Invalid value for AudioTrack");
+//		}
+//		if (buf2 == AudioTrack.ERROR) {
+//			throw new RuntimeException("Error querying hardware for AudioTrack");
+//		}
+//
+//		Log.i("x", "Starting...");
+//
+//		final int bufferSize = Math.max(buf1, buf2);
+//		final AudioRecord record = new AudioRecord(MediaRecorder.AudioSource.MIC, SAMPLE_RATE, AudioFormat.CHANNEL_IN_MONO, ENCODING, bufferSize);
+//		final AudioTrack track = new AudioTrack(AudioManager.STREAM_MUSIC, SAMPLE_RATE, AudioFormat.CHANNEL_OUT_MONO, ENCODING, bufferSize, AudioTrack.MODE_STREAM);
+//
+//		Log.i("x", "Using buffer size " + bufferSize);
+//
+//		record.startRecording();
+//		track.play();
+//		echoThread = new Thread(new Runnable() {
+//			@Override
+//			public void run() {
+//				short[] data = new short[bufferSize / 2];
+//				while (true) {
+//					int num_read = record.read(data, 0, data.length);
+//					track.write(data, 0, num_read);
+//					if (num_read > 0) {
+//						short max = 0;
+//						for (int i = 0; i < num_read; ++i) {
+//							max = (short) Math.max(max, data[i]);
+//						}
+//						Log.i("x", "Read " + num_read + " samples, max=" + max);
+//					}
+//					try {
+//						Thread.sleep(5);
+//					} catch (InterruptedException e) {
+//						Log.i("x", "Stopping...");
+//						record.stop();
+//						track.stop();
+//						break;
+//					}
+//				}
+//			}
+//		});
+//		echoThread.start();
+//	}
+//
+//	@Override
+//	public void onPause() {
+//		super.onPause();
+//		echoThread.interrupt();
+//	}
 
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
@@ -122,13 +121,91 @@ public class MainActivity extends ActionBarActivity {
     }
     
     public void pressButton(View view) {
-    	Intent intent = new Intent(this, DisplayMessageActivity.class);
-    	EditText editText = (EditText) findViewById(R.id.edit_message);
-    	String message = editText.getText().toString();
-    	intent.putExtra(EXTRA_MESSAGE, message);
-    	startActivity(intent);
+    	
+//    	double amplitude = 1;
+//    	int numSamples = 50000;
+    	int sampleRate = 8000;
+//    	double freqOfTone = 440;  // in Hz 
+//    	double[] sample = new double[numSamples];
+//    	short[] buffer = new short[numSamples];
+//    	
+//    	
+//    	// Get the tone.
+//    	for (int i = 0; i < numSamples; ++i) {
+//            sample[i] = amplitude * Math.sin(2 * Math.PI * i / (sampleRate/freqOfTone));
+//            buffer[i] = (short) (sample[i] * 32767);
+//        }
+
+    	short[] buffer = Modulate(Send("LLLL"));
+    	
+    	// Play the tone.
+    	final AudioTrack audioTrack = new AudioTrack(AudioManager.STREAM_MUSIC,
+                sampleRate, AudioFormat.CHANNEL_OUT_MONO,
+                AudioFormat.ENCODING_PCM_16BIT, buffer.length,
+                AudioTrack.MODE_STATIC);
+        audioTrack.write(buffer, 0, buffer.length);
+        audioTrack.play();
+    	
+//    	Intent intent = new Intent(this, DisplayMessageActivity.class);
+//    	EditText editText = (EditText) findViewById(R.id.edit_message);
+//    	String message = editText.getText().toString();
+//    	intent.putExtra(EXTRA_MESSAGE, message);
+//    	startActivity(intent);
+    }
+    
+     
+    public byte[] Send(String message) {
+
+    	int headerLength = 4 + 1 + 1 + 4; // Preamble + src + dst + payload length
+    	int preamble = 0xAAAAAAAA;
+    	byte srcID = 0;
+    	byte dstID = 1;
+    	
+    	byte[] payload = message.getBytes();
+    	int packetLength = headerLength + payload.length;
+    	
+    	ByteBuffer packet = ByteBuffer.allocate(packetLength);
+    	
+    	packet.putInt(preamble);   
+    	packet.put(srcID);  
+    	packet.put(dstID);  
+    	packet.putInt(payload.length);
+    	packet.put(payload);
+    	
+    	Log.i("We're here", Arrays.toString(packet.array()));
+    	
+    	return packet.array();
     }
 
+    public short[] Modulate(byte[] bits) {
+    	double amplitude = 1;
+    	int sampleRate = 8000;
+    	double freqOfTone = 440;  // in Hz 
+    	
+    	int symbolLength = 400;
+    	
+    	int numSamples = bits.length * symbolLength * 8;
+    	
+    	short[] buffer = new short[numSamples];
+    	  	
+    	int idx = 0;
+    	for (byte b : bits) {
+    		for (int i = 0; i < 8; ++i) {
+    			int bit = (b >> i) & 1;
+    			
+    			for (int j = 0; j < symbolLength; ++j) {
+    	            double sample = amplitude * Math.sin(2 * Math.PI * j / (sampleRate/freqOfTone));
+    	            sample *= bit;
+    	            short shortSample = (short)(sample * 32767);
+    	            buffer[idx++] = shortSample;
+    			}
+    			
+    		}
+    	}
+    	
+    	return buffer;
+    }
+    
     /**
      * A placeholder fragment containing a simple view.
      */
