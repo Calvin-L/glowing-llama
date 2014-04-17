@@ -15,6 +15,7 @@ import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.EditText;
 
 public class MainActivity extends ActionBarActivity {
 
@@ -136,15 +137,22 @@ public class MainActivity extends ActionBarActivity {
 //            buffer[i] = (short) (sample[i] * 32767);
 //        }
 
-    	short[] buffer = Modulate(Send("LLLL"));
+    	EditText editText = (EditText) findViewById(R.id.edit_message);
+    	String message = editText.getText().toString();
+
+    	
+    	short[] buffer = Modulate(Send(message));
+    	
+    	Log.i("We're here", Arrays.toString(buffer));
     	
     	// Play the tone.
     	final AudioTrack audioTrack = new AudioTrack(AudioManager.STREAM_MUSIC,
                 sampleRate, AudioFormat.CHANNEL_OUT_MONO,
                 AudioFormat.ENCODING_PCM_16BIT, buffer.length,
-                AudioTrack.MODE_STATIC);
-        audioTrack.write(buffer, 0, buffer.length);
+                AudioTrack.MODE_STREAM);
         audioTrack.play();
+        int numWritten = audioTrack.write(buffer, 0, buffer.length);
+        Log.i("x", "Total shorts: " + buffer.length + "; num written: " + numWritten);
     	
 //    	Intent intent = new Intent(this, DisplayMessageActivity.class);
 //    	EditText editText = (EditText) findViewById(R.id.edit_message);
@@ -172,7 +180,7 @@ public class MainActivity extends ActionBarActivity {
     	packet.putInt(payload.length);
     	packet.put(payload);
     	
-    	Log.i("We're here", Arrays.toString(packet.array()));
+//    	Log.i("We're here", Arrays.toString(packet.array()));
     	
     	return packet.array();
     }
@@ -190,7 +198,7 @@ public class MainActivity extends ActionBarActivity {
     	  	
     	int idx = 0;
     	for (byte b : bits) {
-    		for (int i = 0; i < 8; ++i) {
+    		for (int i = 7; i >= 0; --i) {
     			int bit = (b >> i) & 1;
     			
     			for (int j = 0; j < symbolLength; ++j) {
@@ -202,6 +210,8 @@ public class MainActivity extends ActionBarActivity {
     			
     		}
     	}
+    	
+    	assert idx == numSamples;
     	
     	return buffer;
     }
