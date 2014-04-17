@@ -25,6 +25,8 @@ public class MainActivity extends ActionBarActivity {
     static final String EXTRA_MESSAGE = "org.uw.glowingllama.MESSAGE";
 	private static final int ENCODING = AudioFormat.ENCODING_PCM_16BIT;
 	private static final int SAMPLE_RATE = 44100;
+	
+	int SYMBOL_LENGTH = SAMPLE_RATE/20;
 
 	private Thread listeningThread = null;
 	private int frequency = 3700; // Hz
@@ -93,20 +95,87 @@ public class MainActivity extends ActionBarActivity {
     	if (listening) {
             
             final SimplePlot plot = (SimplePlot) findViewById(R.id.simplePlot);
+            final SimplePlot envelopePlot = (SimplePlot) findViewById(R.id.envelopePlot);
             assert plot != null;
     		listeningThread = new Thread(new Runnable() {
+    			
+    			  			
+    			public int bestOddNumber(int number) {
+    				if (number%2 == 0)
+    					return number + 1;
+					else
+    					return number;	
+    			}
+    			
+    			public double computeGaussian(double stdDev, double mean, double x) {
+    				return 1.0 / (stdDev * Math.sqrt(2*Math.PI)) * Math.exp(-(x-mean)*(x-mean)/(2*stdDev*stdDev));
+    			}
+    			
+    			
 
+    			
 				@Override
 				public void run() {
+					
+					// Compute the Gaussian kernel.
+					int kernelSize = bestOddNumber((int)(2.0*SAMPLE_RATE/frequency));
+					double[] gaussianKernel = new double[kernelSize];
+					double stdDev = kernelSize / 2.0;   // MAGIC NUMBER
+					for (int i = 0; i < kernelSize; ++i) {
+						gaussianKernel[i] = computeGaussian(stdDev, kernelSize/2.0, i);
+					}
+					
+					double[] deltaKernel = new double[kernelSize];
+					for (int i = 0; i < kernelSize; ++i) {
+						if (i < kernelSize / 2) {
+							deltaKernel[i] = -1;
+						} else if (i == kernelSize / 2) {
+							deltaKernel[i] = 0;
+						} else {
+							deltaKernel[i] = 1;
+						}
+					}
+    			
 					int bufferSize = AudioRecord.getMinBufferSize(SAMPLE_RATE, AudioFormat.CHANNEL_IN_MONO, ENCODING);
 		    		final AudioRecord record = new AudioRecord(MediaRecorder.AudioSource.MIC, SAMPLE_RATE, AudioFormat.CHANNEL_IN_MONO, ENCODING, bufferSize);
 		    		record.startRecording();
-		    		short[] data = new short[bufferSize / 2];
-		    		
+		    		short[] newData = new short[bufferSize / 2];
+		    		RingBuffer absData = new RingBuffer(SYMBOL_LENGTH * 10);  // MAGIC NUMBER 
+		    		RingBuffer envelopedData = new RingBuffer(absData.size());
+		    		RingBuffer deltaData = new RingBuffer(absData.size());
+		    		int convolveStartIndex = absData.size() - kernelSize;
+		    		int deltaStartIndex = envelopedData.size() - kernelSize;
+		    				    		
 					while (true) {
-						int num_read = record.read(data, 0, data.length);
+						// Read in new data.
+						int num_read = record.read(newData, 0, newData.length);
+						
+//						short[] absData = new short[newData.length];
 						for (int i = 0; i < num_read; ++i) {
-							plot.putSample(data[i]);
+							absData.addElement((short) Math.abs(newData[i]));
+							
+							// Calculate the enveloped data point.
+							double newEnvelopedPoint = 0;
+							for (int j = 0; j < kernelSize; ++j) {
+								newEnvelopedPoint += gaussianKernel[j] * absData.get(convolveStartIndex+j);
+							}
+							envelopedData.addElement((short)newEnvelopedPoint);
+//							envelopePlot.putSample((short)newEnvelopedPoint);
+							
+							// Calculate the delta point.
+							double newDeltaPoint = 0;
+							for (int j = 0; j < kernelSize; ++j) {
+								newDeltaPoint += deltaKernel[j] * envelopedData.get(deltaStartIndex+j);
+							}
+							deltaData.addElement((short)newDeltaPoint);
+							envelopePlot.putSample((short)newDeltaPoint);
+							
+						}
+						
+//						envelopePlot.putRingBuffer(envelopedData);
+						
+						for (int i = 0; i < num_read; ++i) {
+							plot.putSample(newData[i]);
 						}
 						try {
 							Thread.sleep(5);
@@ -173,9 +242,7 @@ public class MainActivity extends ActionBarActivity {
     public short[] Modulate(byte[] bits) {
     	double amplitude = 1;
     	
-    	int symbolLength = SAMPLE_RATE/20;
-    	
-    	int numSamples = bits.length * symbolLength * 8;
+    	int numSamples = bits.length * SYMBOL_LENGTH * 8;
     	
     	short[] buffer = new short[numSamples];
     	  	
@@ -184,7 +251,7 @@ public class MainActivity extends ActionBarActivity {
     		for (int i = 7; i >= 0; --i) {
     			int bit = (b >> i) & 1;
     			
-    			for (int j = 0; j < symbolLength; ++j) {
+    			for (int j = 0; j < SYMBOL_LENGTH; ++j) {
     	            double sample = amplitude * Math.sin(2 * Math.PI * j / (SAMPLE_RATE/frequency));
     	            sample *= bit;
     	            short shortSample = (short)(sample * 32767);

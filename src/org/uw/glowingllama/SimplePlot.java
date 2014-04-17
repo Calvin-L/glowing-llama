@@ -30,20 +30,31 @@ public class SimplePlot extends View {
 		int x = 0;
 		synchronized(samples) {
 			for (short s : samples) {
-				c.drawLine(x, h/2, x, (int)((h/2) * ((double)s / 33000)) + h/2, black);
+				c.drawLine(x, h/2, x, -(int)((h/2) * ((double)s / 33000)) + h/2, black);
 				x++;
 			}
 		}
 	}
 	
+	int sampleNum = 0;
+	
 	public void putSample(short sample) {
 		synchronized(samples) {
-			samples.add(sample);
+			++sampleNum;
+			if (sampleNum % 10 == 0) {
+				samples.add(sample);
+			}
 			while (samples.size() > this.getWidth()) {
 				samples.removeFirst();
 			}
 		}
 		this.postInvalidate();
+	}
+	
+	public void putRingBuffer(RingBuffer buffer) {
+		for (short e : buffer) {
+			putSample(e);
+		}
 	}
 
 }
