@@ -134,24 +134,9 @@ public class MainActivity extends ActionBarActivity {
     }
     
     public void pressButton(View view) {
-    	
-//    	double amplitude = 1;
-//    	int numSamples = 50000;
-//    	double freqOfTone = 440;  // in Hz 
-//    	double[] sample = new double[numSamples];
-//    	short[] buffer = new short[numSamples];
-//    	
-//    	
-//    	// Get the tone.
-//    	for (int i = 0; i < numSamples; ++i) {
-//            sample[i] = amplitude * Math.sin(2 * Math.PI * i / (sampleRate/freqOfTone));
-//            buffer[i] = (short) (sample[i] * 32767);
-//        }
-
     	EditText editText = (EditText) findViewById(R.id.edit_message);
     	String message = editText.getText().toString();
 
-    	
     	short[] buffer = Modulate(Send(message));
     	
     	// Play the tone.
@@ -161,12 +146,6 @@ public class MainActivity extends ActionBarActivity {
                 AudioTrack.MODE_STREAM);
         audioTrack.play();
         audioTrack.write(buffer, 0, buffer.length);
-    	
-//    	Intent intent = new Intent(this, DisplayMessageActivity.class);
-//    	EditText editText = (EditText) findViewById(R.id.edit_message);
-//    	String message = editText.getText().toString();
-//    	intent.putExtra(EXTRA_MESSAGE, message);
-//    	startActivity(intent);
     }
     
      

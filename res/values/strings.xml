@@ -6,7 +6,6 @@
     <string name="action_settings">Settings</string>
     <string name="edit_message">Placeholder text</string>
     <string name="button_text">Button text</string>
-    <string name="title_activity_display_message">DisplayMessageActivity</string>
     <string name="listen_button_text">Listen</string>
 
 </resources>
