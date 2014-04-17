@@ -211,8 +211,7 @@ public class MainActivity extends ActionBarActivity {
     	// Play the tone.
     	final AudioTrack audioTrack = new AudioTrack(AudioManager.STREAM_MUSIC,
                 SAMPLE_RATE, AudioFormat.CHANNEL_OUT_MONO,
-                AudioFormat.ENCODING_PCM_16BIT, buffer.length,
-                AudioTrack.MODE_STREAM);
+                ENCODING, buffer.length, AudioTrack.MODE_STREAM);
         audioTrack.play();
         audioTrack.write(buffer, 0, buffer.length);
     }
