@@ -22,8 +22,8 @@ public class RingBuffer implements Iterable<Short> {
 		head = head % bufferSize;
 	}
 	
-	public void addManyElements(short[] array) {
-		for (short s : array) {
+	public void addAll(RingBuffer b) {
+		for (short s : b) {
 			addElement(s);
 		}
 	}
@@ -36,6 +36,14 @@ public class RingBuffer implements Iterable<Short> {
 	
 	public int size() {
 		return bufferSize;
+	}
+
+	public void resize(int newCapacity) {
+		RingBuffer b = new RingBuffer(newCapacity);
+		b.addAll(this);
+		buffer = b.buffer;
+		bufferSize = newCapacity;
+		head = b.head;
 	}
 
 	@Override
