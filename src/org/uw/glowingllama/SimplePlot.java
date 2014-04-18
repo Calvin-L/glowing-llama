@@ -1,7 +1,5 @@
 package org.uw.glowingllama;
 
-import java.util.LinkedList;
-
 import android.content.Context;
 import android.graphics.Canvas;
 import android.graphics.Color;
@@ -11,14 +9,21 @@ import android.view.View;
 
 public class SimplePlot extends View {
 	
-	LinkedList<Short> samples = new LinkedList<Short>();
+	RingBuffer samples;
 	Paint black = new Paint();
 
 	public SimplePlot(Context context, AttributeSet attrs) {
 		super(context, attrs);
 		black.setColor(Color.BLACK);
+		samples = new RingBuffer(Math.max(getWidth(), 1));
 	}
 	
+	@Override
+	protected void onSizeChanged(int w, int h, int oldw, int oldh) {
+		super.onSizeChanged(w, h, oldw, oldh);
+		samples.resize(Math.max(w, 1));
+	}
+
 	@Override
 	protected void onDraw(Canvas c) {
 		c.drawColor(Color.WHITE);
@@ -42,18 +47,9 @@ public class SimplePlot extends View {
 		synchronized(samples) {
 			++sampleNum;
 			if (sampleNum % 10 == 0) {
-				samples.add(sample);
+				samples.addElement(sample);
+				postInvalidate();
 			}
-			while (samples.size() > this.getWidth()) {
-				samples.removeFirst();
-			}
-		}
-		this.postInvalidate();
-	}
-	
-	public void putRingBuffer(RingBuffer buffer) {
-		for (short e : buffer) {
-			putSample(e);
 		}
 	}
 
