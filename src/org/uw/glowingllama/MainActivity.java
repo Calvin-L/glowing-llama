@@ -1,7 +1,9 @@
 package org.uw.glowingllama;
 
 import java.nio.ByteBuffer;
-
+import java.util.Arrays;
+import edu.emory.mathcs.jtransforms.fft.DoubleFFT_1D;
+import android.annotation.SuppressLint;
 import android.media.AudioFormat;
 import android.media.AudioManager;
 import android.media.AudioRecord;
@@ -26,10 +28,10 @@ public class MainActivity extends ActionBarActivity {
 	private static final int ENCODING = AudioFormat.ENCODING_PCM_16BIT;
 	private static final int SAMPLE_RATE = 44100;
 	
-	int SYMBOL_LENGTH = SAMPLE_RATE/10;
+	int SYMBOL_LENGTH = SAMPLE_RATE/500;
 
 	private Thread listeningThread = null;
-	private int frequency = 3700; // Hz
+	private int frequency = 10000; //500; //3700; // Hz
 
 	@Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -144,8 +146,8 @@ public class MainActivity extends ActionBarActivity {
 						}
 					}
 					
-					int fftWindowSize = bestPowerOfTwo(SAMPLE_RATE);
-					double fftOverlapRatio = 0.5;
+					int fftWindowSize = bestPowerOfTwo((SAMPLE_RATE / frequency) * 10);
+					double fftOverlapRatio = 0.1;
 					RingBuffer fftWindow = new RingBuffer(fftWindowSize);
     			
 					int bufferSize = AudioRecord.getMinBufferSize(SAMPLE_RATE, AudioFormat.CHANNEL_IN_MONO, ENCODING);
@@ -160,7 +162,7 @@ public class MainActivity extends ActionBarActivity {
 		    				    		
 		    		
 		    		int timeSinceLastFFT = 0;
-		    		FFT fft = new FFT(fftWindowSize);
+					double x[] = new double[fftWindowSize];
 		    		
 					while (true) {
 						// Read in new data.
@@ -170,25 +172,47 @@ public class MainActivity extends ActionBarActivity {
 							short sample = newData[i];
 							fftWindow.addElement(sample);
 							++timeSinceLastFFT;
+//							if (true) {
 							if (timeSinceLastFFT >= fftWindowSize*fftOverlapRatio) {
+							
 								timeSinceLastFFT = 0;
-								double x[] = new double[fftWindowSize];
-								double y[] = new double[fftWindowSize];
 								for (int j = 0; j < fftWindow.size(); ++j) {
-									x[j] = fftWindow.get(j);
-									y[j] = 0;
+									x[j] = (double)fftWindow.get(j) / Short.MAX_VALUE;
 								}
 								
-								fft.fft(x, y);
+								DoubleFFT_1D jfft = new DoubleFFT_1D(fftWindowSize);
+								jfft.realForward(x);
+								
 								
 								short[] fftOutput = new short[x.length];
-								Log.i("x", "converting fft output");
+//								Log.i("x", "converting fft output");
+							    double max = 0;
 								for (int j = 0; j < x.length; ++j) {
-									fftOutput[j] = (short)x[j];
+									max = Math.max(max, x[j]);
+									fftOutput[j] = (short)(x[j] * Short.MAX_VALUE / fftWindowSize);
 //									Log.i("x", "got fft value: " + x[j]);
 								}
+//								Log.i("x", "max fft val=" + max);
+								envelopePlot.setSkip(25);
 								envelopePlot.reset();
 								envelopePlot.putMultipleSamples(fftOutput);
+								
+								final int spread = 500;
+								int targetIndex = (int)((double)frequency / SAMPLE_RATE * fftWindowSize);
+								int minIndex = Math.max(0, targetIndex - spread);
+								int maxIndex = Math.min(targetIndex + spread, fftWindowSize);
+								
+								envelopePlot.setMarks(Arrays.asList(
+										envelopePlot.getWidth() + (-fftWindowSize + minIndex) / envelopePlot.getSkip(),
+										envelopePlot.getWidth() + (-fftWindowSize + maxIndex) / envelopePlot.getSkip()));
+								
+								short bestVal = 0;
+								for (int j = minIndex; j < maxIndex; ++j) {
+									bestVal = (short)Math.max(bestVal, Math.abs(fftOutput[j]));
+								}
+								deltaPlot.setSkip(0);
+								deltaPlot.putSample(bestVal);
+								
 //								for (int j = 0; j < x.length; ++j) {
 //									envelopePlot.putSample((short)x[j]);
 //								}
@@ -241,18 +265,33 @@ public class MainActivity extends ActionBarActivity {
     	frequency = Math.max(progress, 1);
     }
     
-    public void pressButton(View view) {
+    @SuppressLint("NewApi")
+	public void pressButton(View view) {
     	EditText editText = (EditText) findViewById(R.id.edit_message);
     	String message = editText.getText().toString();
 
-    	short[] buffer = Modulate(Send(message));
+    	final short[] buffer = Modulate(Send(message));
+
+//        final SimplePlot envelopePlot = (SimplePlot) findViewById(R.id.envelopePlot);
+//        envelopePlot.setSkip(500);
+//    	envelopePlot.putMultipleSamples(Arrays.copyOfRange(buffer, buffer.length / 2 - 100000, buffer.length / 2));
+//    	Log.i("x", "I am envelope plot: " + envelopePlot);
     	
     	// Play the tone.
-    	final AudioTrack audioTrack = new AudioTrack(AudioManager.STREAM_MUSIC,
-                SAMPLE_RATE, AudioFormat.CHANNEL_OUT_MONO,
-                ENCODING, buffer.length, AudioTrack.MODE_STREAM);
-        audioTrack.play();
-        audioTrack.write(buffer, 0, buffer.length);
+    	Thread t = new Thread(new Runnable() {
+
+			@Override
+			public void run() {
+		    	final AudioTrack audioTrack = new AudioTrack(AudioManager.STREAM_MUSIC,
+		                SAMPLE_RATE, AudioFormat.CHANNEL_OUT_MONO,
+		                ENCODING, AudioTrack.getMinBufferSize(SAMPLE_RATE, AudioFormat.CHANNEL_OUT_MONO, ENCODING), AudioTrack.MODE_STREAM);
+		        audioTrack.play();
+		        audioTrack.write(buffer, 0, buffer.length);
+				
+			}
+    		
+    	});
+    	t.start();
     }
     
      
@@ -269,10 +308,10 @@ public class MainActivity extends ActionBarActivity {
     	ByteBuffer packet = ByteBuffer.allocate(packetLength);
     	
     	packet.putInt(preamble);   
-    	packet.put(srcID);  
-    	packet.put(dstID);  
-    	packet.putInt(payload.length);
-    	packet.put(payload);
+//    	packet.put(srcID);  
+//    	packet.put(dstID);  
+//    	packet.putInt(payload.length);
+//    	packet.put(payload);
     	
     	return packet.array();
     }
@@ -290,6 +329,8 @@ public class MainActivity extends ActionBarActivity {
     			int bit = (b >> i) & 1;
     			
     			for (int j = 0; j < SYMBOL_LENGTH; ++j) {
+//    				double freq = (bit == 0) ? frequency : frequency / 2;
+//    				double sample = amplitude * Math.sin(2 * Math.PI * j / SAMPLE_RATE * frequency);
     	            double sample = amplitude * Math.sin(2 * Math.PI * j / (SAMPLE_RATE/frequency));
     	            sample *= bit;
     	            short shortSample = (short)(sample * 32767);
