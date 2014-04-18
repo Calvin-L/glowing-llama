@@ -26,7 +26,7 @@ public class MainActivity extends ActionBarActivity {
 	private static final int ENCODING = AudioFormat.ENCODING_PCM_16BIT;
 	private static final int SAMPLE_RATE = 44100;
 	
-	int SYMBOL_LENGTH = SAMPLE_RATE/20;
+	int SYMBOL_LENGTH = SAMPLE_RATE/10;
 
 	private Thread listeningThread = null;
 	private int frequency = 3700; // Hz
@@ -96,6 +96,8 @@ public class MainActivity extends ActionBarActivity {
             
             final SimplePlot plot = (SimplePlot) findViewById(R.id.simplePlot);
             final SimplePlot envelopePlot = (SimplePlot) findViewById(R.id.envelopePlot);
+            final SimplePlot deltaPlot = (SimplePlot) findViewById(R.id.deltaPlot);
+            
             assert plot != null;
     		listeningThread = new Thread(new Runnable() {
     			
@@ -105,6 +107,11 @@ public class MainActivity extends ActionBarActivity {
     					return number + 1;
 					else
     					return number;	
+    			}
+    			
+    			public int bestPowerOfTwo(int n) {
+    			      int m = (int) (Math.log(n) / Math.log(2));
+    			      return (1 << m);
     			}
     			
     			public double computeGaussian(double stdDev, double mean, double x) {
@@ -118,23 +125,28 @@ public class MainActivity extends ActionBarActivity {
 				public void run() {
 					
 					// Compute the Gaussian kernel.
-					int kernelSize = bestOddNumber((int)(2.0*SAMPLE_RATE/frequency));
-					double[] gaussianKernel = new double[kernelSize];
-					double stdDev = kernelSize / 2.0;   // MAGIC NUMBER
-					for (int i = 0; i < kernelSize; ++i) {
-						gaussianKernel[i] = computeGaussian(stdDev, kernelSize/2.0, i);
+					int envelopeKernelSize = bestOddNumber((int)(10.0*SAMPLE_RATE/frequency));
+					double[] gaussianKernel = new double[envelopeKernelSize];
+					double stdDev = envelopeKernelSize / 2.0;   // MAGIC NUMBER
+					for (int i = 0; i < envelopeKernelSize; ++i) {
+						gaussianKernel[i] = computeGaussian(stdDev, envelopeKernelSize/2.0, i);
 					}
-					
-					double[] deltaKernel = new double[kernelSize];
-					for (int i = 0; i < kernelSize; ++i) {
-						if (i < kernelSize / 2) {
+
+					int deltaKernelSize = bestOddNumber((int)(2.0*SAMPLE_RATE/frequency));
+					double[] deltaKernel = new double[deltaKernelSize];
+					for (int i = 0; i < deltaKernelSize; ++i) {
+						if (i < deltaKernelSize / 2) {
 							deltaKernel[i] = -1;
-						} else if (i == kernelSize / 2) {
+						} else if (i == deltaKernelSize / 2) {
 							deltaKernel[i] = 0;
 						} else {
 							deltaKernel[i] = 1;
 						}
 					}
+					
+					int fftWindowSize = bestPowerOfTwo(SAMPLE_RATE);
+					double fftOverlapRatio = 0.5;
+					RingBuffer fftWindow = new RingBuffer(fftWindowSize);
     			
 					int bufferSize = AudioRecord.getMinBufferSize(SAMPLE_RATE, AudioFormat.CHANNEL_IN_MONO, ENCODING);
 		    		final AudioRecord record = new AudioRecord(MediaRecorder.AudioSource.MIC, SAMPLE_RATE, AudioFormat.CHANNEL_IN_MONO, ENCODING, bufferSize);
@@ -143,34 +155,64 @@ public class MainActivity extends ActionBarActivity {
 		    		RingBuffer absData = new RingBuffer(SYMBOL_LENGTH * 10);  // MAGIC NUMBER 
 		    		RingBuffer envelopedData = new RingBuffer(absData.size());
 		    		RingBuffer deltaData = new RingBuffer(absData.size());
-		    		int convolveStartIndex = absData.size() - kernelSize;
-		    		int deltaStartIndex = envelopedData.size() - kernelSize;
+		    		int convolveStartIndex = absData.size() - envelopeKernelSize;
+		    		int deltaStartIndex = envelopedData.size() - deltaKernelSize;
 		    				    		
+		    		
+		    		int timeSinceLastFFT = 0;
+		    		FFT fft = new FFT(fftWindowSize);
+		    		
 					while (true) {
 						// Read in new data.
 						int num_read = record.read(newData, 0, newData.length);
 						
 						for (int i = 0; i < num_read; ++i) {
 							short sample = newData[i];
-							absData.addElement((short) Math.abs(sample));
-							
-							// Calculate the enveloped data point.
-							double newEnvelopedPoint = 0;
-							for (int j = 0; j < kernelSize; ++j) {
-								newEnvelopedPoint += gaussianKernel[j] * absData.get(convolveStartIndex+j);
+							fftWindow.addElement(sample);
+							++timeSinceLastFFT;
+							if (timeSinceLastFFT >= fftWindowSize*fftOverlapRatio) {
+								timeSinceLastFFT = 0;
+								double x[] = new double[fftWindowSize];
+								double y[] = new double[fftWindowSize];
+								for (int j = 0; j < fftWindow.size(); ++j) {
+									x[j] = fftWindow.get(j);
+									y[j] = 0;
+								}
+								
+								fft.fft(x, y);
+								
+								short[] fftOutput = new short[x.length];
+								Log.i("x", "converting fft output");
+								for (int j = 0; j < x.length; ++j) {
+									fftOutput[j] = (short)x[j];
+//									Log.i("x", "got fft value: " + x[j]);
+								}
+								envelopePlot.reset();
+								envelopePlot.putMultipleSamples(fftOutput);
+//								for (int j = 0; j < x.length; ++j) {
+//									envelopePlot.putSample((short)x[j]);
+//								}
 							}
-							envelopedData.addElement((short)newEnvelopedPoint);
 							
-							// Calculate the delta point.
-							double newDeltaPoint = 0;
-							for (int j = 0; j < kernelSize; ++j) {
-								newDeltaPoint += deltaKernel[j] * envelopedData.get(deltaStartIndex+j);
-							}
-							deltaData.addElement((short)newDeltaPoint);
+//							absData.addElement((short) Math.abs(sample));
+//							
+//							// Calculate the enveloped data point.
+//							double newEnvelopedPoint = 0;
+//							for (int j = 0; j < envelopeKernelSize; ++j) {
+//								newEnvelopedPoint += gaussianKernel[j] * absData.get(convolveStartIndex+j);
+//							}
+//							envelopedData.addElement((short)newEnvelopedPoint);
+//							
+//							// Calculate the delta point.
+//							double newDeltaPoint = 0;
+//							for (int j = 0; j < deltaKernelSize; ++j) {
+//								newDeltaPoint += deltaKernel[j] * envelopedData.get(deltaStartIndex+j);
+//							}
+//							deltaData.addElement((short)newDeltaPoint);
 
 							plot.putSample(sample);
 //							envelopePlot.putSample((short)newEnvelopedPoint);
-							envelopePlot.putSample((short)newDeltaPoint);
+//							deltaPlot.putSample((short)newDeltaPoint);
 							
 						}
 						

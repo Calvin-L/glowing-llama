@@ -5,6 +5,7 @@ import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
 import android.util.AttributeSet;
+import android.util.Log;
 import android.view.View;
 
 public class SimplePlot extends View {
@@ -21,7 +22,7 @@ public class SimplePlot extends View {
 	@Override
 	protected void onSizeChanged(int w, int h, int oldw, int oldh) {
 		super.onSizeChanged(w, h, oldw, oldh);
-		samples.resize(Math.max(w, 1));
+		samples.resize(Math.max(w, 1));		
 	}
 
 	@Override
@@ -44,13 +45,31 @@ public class SimplePlot extends View {
 	int sampleNum = 0;
 	
 	public void putSample(short sample) {
+		putMultipleSamples(new short[] {sample}); 
+//		synchronized(samples) {
+//			++sampleNum;
+//			if (sampleNum % 100 == 0) {
+//				samples.addElement(sample);
+//				postInvalidate();
+//			}
+//		}
+	}
+	
+	public void putMultipleSamples(short[] newSamples) {
 		synchronized(samples) {
-			++sampleNum;
-			if (sampleNum % 10 == 0) {
-				samples.addElement(sample);
-				postInvalidate();
+			for (short s : newSamples) {
+				++sampleNum;
+				if (sampleNum % 50 == 0) {
+					samples.addElement(s);
+				}
 			}
 		}
+		postInvalidate();
+	}
+	
+	
+	public void reset() {
+		samples.reset();
 	}
 
 }
