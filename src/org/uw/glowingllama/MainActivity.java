@@ -150,9 +150,9 @@ public class MainActivity extends ActionBarActivity {
 						// Read in new data.
 						int num_read = record.read(newData, 0, newData.length);
 						
-//						short[] absData = new short[newData.length];
 						for (int i = 0; i < num_read; ++i) {
-							absData.addElement((short) Math.abs(newData[i]));
+							short sample = newData[i];
+							absData.addElement((short) Math.abs(sample));
 							
 							// Calculate the enveloped data point.
 							double newEnvelopedPoint = 0;
@@ -160,7 +160,6 @@ public class MainActivity extends ActionBarActivity {
 								newEnvelopedPoint += gaussianKernel[j] * absData.get(convolveStartIndex+j);
 							}
 							envelopedData.addElement((short)newEnvelopedPoint);
-//							envelopePlot.putSample((short)newEnvelopedPoint);
 							
 							// Calculate the delta point.
 							double newDeltaPoint = 0;
@@ -168,15 +167,13 @@ public class MainActivity extends ActionBarActivity {
 								newDeltaPoint += deltaKernel[j] * envelopedData.get(deltaStartIndex+j);
 							}
 							deltaData.addElement((short)newDeltaPoint);
+
+							plot.putSample(sample);
+//							envelopePlot.putSample((short)newEnvelopedPoint);
 							envelopePlot.putSample((short)newDeltaPoint);
 							
 						}
 						
-//						envelopePlot.putRingBuffer(envelopedData);
-						
-						for (int i = 0; i < num_read; ++i) {
-							plot.putSample(newData[i]);
-						}
 						try {
 							Thread.sleep(5);
 						} catch (InterruptedException e) {
