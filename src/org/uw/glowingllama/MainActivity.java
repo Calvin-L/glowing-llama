@@ -55,7 +55,7 @@ public class MainActivity extends ActionBarActivity {
 			@Override
 			public void onProgressChanged(SeekBar seekBar, int progress,
 					boolean fromUser) {
-				updateFreq(progress);
+//				updateFreq(progress);  // Temporarily commented out
 			}
 
 			@Override
@@ -127,7 +127,8 @@ public class MainActivity extends ActionBarActivity {
 				public void run() {
 					
 					// Compute the Gaussian kernel.
-					int envelopeKernelSize = bestOddNumber((int)(10.0*SAMPLE_RATE/frequency));
+					int envelopeKernelSize = bestOddNumber((int)(2*SAMPLE_RATE/frequency));
+//					int envelopeKernelSize = bestOddNumber((int)(10.0*SAMPLE_RATE/frequency));
 					double[] gaussianKernel = new double[envelopeKernelSize];
 					double stdDev = envelopeKernelSize / 2.0;   // MAGIC NUMBER
 					for (int i = 0; i < envelopeKernelSize; ++i) {
@@ -154,10 +155,12 @@ public class MainActivity extends ActionBarActivity {
 		    		final AudioRecord record = new AudioRecord(MediaRecorder.AudioSource.MIC, SAMPLE_RATE, AudioFormat.CHANNEL_IN_MONO, ENCODING, bufferSize);
 		    		record.startRecording();
 		    		short[] newData = new short[bufferSize / 2];
-		    		RingBuffer absData = new RingBuffer(SYMBOL_LENGTH * 10);  // MAGIC NUMBER 
-		    		RingBuffer envelopedData = new RingBuffer(absData.size());
-		    		RingBuffer deltaData = new RingBuffer(absData.size());
-		    		int convolveStartIndex = absData.size() - envelopeKernelSize;
+		    		int firstRingbufferSize = SYMBOL_LENGTH * 10;   // MAGIC NUMBER
+//		    		RingBuffer absData = new RingBuffer(firstRingbufferSize); 
+		    		RingBuffer bandpassData = new RingBuffer(firstRingbufferSize);
+		    		RingBuffer envelopedData = new RingBuffer(bandpassData.size());
+		    		RingBuffer deltaData = new RingBuffer(bandpassData.size());
+		    		int envelopeStartIndex = bandpassData.size() - envelopeKernelSize;
 		    		int deltaStartIndex = envelopedData.size() - deltaKernelSize;
 		    				    		
 		    		
@@ -193,29 +196,53 @@ public class MainActivity extends ActionBarActivity {
 //									Log.i("x", "got fft value: " + x[j]);
 								}
 //								Log.i("x", "max fft val=" + max);
-								envelopePlot.setSkip(25);
-								envelopePlot.reset();
-								envelopePlot.putMultipleSamples(fftOutput);
+//								envelopePlot.setSkip(25);
+//								envelopePlot.reset();
+//								envelopePlot.putMultipleSamples(fftOutput);
 								
 								final int spread = 500;
 								int targetIndex = (int)((double)frequency / SAMPLE_RATE * fftWindowSize);
 								int minIndex = Math.max(0, targetIndex - spread);
 								int maxIndex = Math.min(targetIndex + spread, fftWindowSize);
 								
-								envelopePlot.setMarks(Arrays.asList(
-										envelopePlot.getWidth() + (-fftWindowSize + minIndex) / envelopePlot.getSkip(),
-										envelopePlot.getWidth() + (-fftWindowSize + maxIndex) / envelopePlot.getSkip()));
+//								envelopePlot.setMarks(Arrays.asList(
+//										envelopePlot.getWidth() + (-fftWindowSize + minIndex) / envelopePlot.getSkip(),
+//										envelopePlot.getWidth() + (-fftWindowSize + maxIndex) / envelopePlot.getSkip()));
 								
 								short bestVal = 0;
 								for (int j = minIndex; j < maxIndex; ++j) {
 									bestVal = (short)Math.max(bestVal, Math.abs(fftOutput[j]));
 								}
-								deltaPlot.setSkip(0);
-								deltaPlot.putSample(bestVal);
+//								deltaPlot.setSkip(0);
+//								deltaPlot.putSample(bestVal);
 								
-//								for (int j = 0; j < x.length; ++j) {
-//									envelopePlot.putSample((short)x[j]);
-//								}
+								plot.setSkip(0);
+								plot.putSample(bestVal);
+								
+								
+								
+								bandpassData.addElement(bestVal);
+								
+								// Calculate the enveloped data point.
+								double newEnvelopedPoint = 0;
+								for (int j = 0; j < envelopeKernelSize; ++j) {
+									newEnvelopedPoint += gaussianKernel[j] * bandpassData.get(envelopeStartIndex+j);
+								}
+								envelopedData.addElement((short)newEnvelopedPoint);
+								
+								envelopePlot.setSkip(0);
+								envelopePlot.putSample((short)newEnvelopedPoint);
+								
+								// Calculate the delta point.
+								double newDeltaPoint = 0;
+								for (int j = 0; j < deltaKernelSize; ++j) {
+									newDeltaPoint += deltaKernel[j] * envelopedData.get(deltaStartIndex+j);
+								}
+								deltaData.addElement((short)newDeltaPoint);
+								deltaPlot.setSkip(0);
+								deltaPlot.putSample((short)newDeltaPoint);
+								
+							
 							}
 							
 //							absData.addElement((short) Math.abs(sample));
@@ -234,10 +261,11 @@ public class MainActivity extends ActionBarActivity {
 //							}
 //							deltaData.addElement((short)newDeltaPoint);
 
-							plot.putSample(sample);
+							
+//							plot.putSample(sample);
 //							envelopePlot.putSample((short)newEnvelopedPoint);
 //							deltaPlot.putSample((short)newDeltaPoint);
-							
+										
 						}
 						
 						try {

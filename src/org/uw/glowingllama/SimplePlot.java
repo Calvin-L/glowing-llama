@@ -103,5 +103,9 @@ public class SimplePlot extends View {
 	public int getSkip() {
 		return skip;
 	}
+	
+	public short get(int index) {
+		return samples.get(index);
+	}
 
 }
