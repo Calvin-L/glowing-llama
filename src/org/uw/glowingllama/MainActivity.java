@@ -12,7 +12,7 @@ import android.media.AudioTrack;
 import android.media.MediaRecorder;
 import android.os.Bundle;
 import android.support.v4.app.Fragment;
-import android.support.v7.app.ActionBarActivity;
+import android.support.v4.app.FragmentActivity;
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.Menu;
@@ -25,7 +25,7 @@ import android.widget.EditText;
 import android.widget.SeekBar;
 import android.widget.ToggleButton;
 
-public class MainActivity extends ActionBarActivity {
+public class MainActivity extends FragmentActivity {
 
     static final String EXTRA_MESSAGE = "org.uw.glowingllama.MESSAGE";
 	private static final int ENCODING = AudioFormat.ENCODING_PCM_16BIT;
