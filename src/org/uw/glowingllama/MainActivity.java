@@ -89,19 +89,20 @@ public class MainActivity extends FragmentActivity {
 
 						@Override
 						public void run() {
-					    	EditText editText = (EditText) findViewById(R.id.edit_message);
-					    	String message = editText.getText().toString();
+							EditText editText = (EditText) findViewById(R.id.edit_message);
+							String message = editText.getText().toString();
 
-					    	final short[] buffer = Modulate(Send(message));
+							final short[] buffer = Modulate(Send(message));
+							final int bufferSize = AudioTrack.getMinBufferSize(SAMPLE_RATE, AudioFormat.CHANNEL_OUT_MONO, ENCODING);
 
-					    	final AudioTrack audioTrack = new AudioTrack(AudioManager.STREAM_MUSIC,
+							final AudioTrack audioTrack = new AudioTrack(AudioManager.STREAM_MUSIC,
 					                SAMPLE_RATE, AudioFormat.CHANNEL_OUT_MONO,
-					                ENCODING, AudioTrack.getMinBufferSize(SAMPLE_RATE, AudioFormat.CHANNEL_OUT_MONO, ENCODING), AudioTrack.MODE_STREAM);
-					        audioTrack.play();
+					                ENCODING, bufferSize, AudioTrack.MODE_STREAM);
+							audioTrack.play();
 							while (!Thread.interrupted()) {
-						        audioTrack.write(buffer, 0, buffer.length);
+								audioTrack.write(buffer, 0, buffer.length);
 							}
-					    	
+							audioTrack.stop();
 						}
 						
 					});
@@ -354,7 +355,7 @@ public class MainActivity extends FragmentActivity {
 		                ENCODING, AudioTrack.getMinBufferSize(SAMPLE_RATE, AudioFormat.CHANNEL_OUT_MONO, ENCODING), AudioTrack.MODE_STREAM);
 		        audioTrack.play();
 		        audioTrack.write(buffer, 0, buffer.length);
-				
+				audioTrack.stop();
 			}
     		
     	});
