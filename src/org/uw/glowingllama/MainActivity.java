@@ -2,6 +2,7 @@ package org.uw.glowingllama;
 
 import java.nio.ByteBuffer;
 import java.util.Arrays;
+
 import edu.emory.mathcs.jtransforms.fft.DoubleFFT_1D;
 import android.annotation.SuppressLint;
 import android.media.AudioFormat;
@@ -16,8 +17,10 @@ import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.Menu;
 import android.view.MenuItem;
+import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.Button;
 import android.widget.EditText;
 import android.widget.SeekBar;
 import android.widget.ToggleButton;
@@ -69,6 +72,54 @@ public class MainActivity extends ActionBarActivity {
 			}
         	
         });
+        
+
+        Button button = (Button) findViewById(R.id.button);
+        button.setOnTouchListener(new View.OnTouchListener() {
+        	
+        	Thread sendThread = null;
+
+			@Override
+			public boolean onTouch(View v, MotionEvent event) {
+				switch (event.getAction()) {
+				case MotionEvent.ACTION_DOWN:
+					if (sendThread != null) {
+						sendThread.interrupt();
+					}
+					sendThread = new Thread(new Runnable() {
+
+						@Override
+						public void run() {
+					    	EditText editText = (EditText) findViewById(R.id.edit_message);
+					    	String message = editText.getText().toString();
+
+					    	final short[] buffer = Modulate(Send(message));
+
+					    	final AudioTrack audioTrack = new AudioTrack(AudioManager.STREAM_MUSIC,
+					                SAMPLE_RATE, AudioFormat.CHANNEL_OUT_MONO,
+					                ENCODING, AudioTrack.getMinBufferSize(SAMPLE_RATE, AudioFormat.CHANNEL_OUT_MONO, ENCODING), AudioTrack.MODE_STREAM);
+					        audioTrack.play();
+							while (!Thread.interrupted()) {
+						        audioTrack.write(buffer, 0, buffer.length);
+							}
+					    	
+						}
+						
+					});
+					sendThread.start();
+					break;
+				case MotionEvent.ACTION_UP:
+					if (sendThread != null) {
+						sendThread.interrupt();
+						sendThread = null;
+					}
+					break;
+				}
+				return false;
+			}
+        	
+        });
+        
     }
 
     @Override
@@ -126,6 +177,9 @@ public class MainActivity extends ActionBarActivity {
 				@Override
 				public void run() {
 					
+					BitFetcher bitFetcher = new BitFetcher(SYMBOL_LENGTH, 50);
+					short lastBitSeen = 0;
+					
 					// Compute the Gaussian kernel.
 					int envelopeKernelSize = bestOddNumber((int)(2*SAMPLE_RATE/frequency));
 //					int envelopeKernelSize = bestOddNumber((int)(10.0*SAMPLE_RATE/frequency));
@@ -166,6 +220,9 @@ public class MainActivity extends ActionBarActivity {
 		    		
 		    		int timeSinceLastFFT = 0;
 					double x[] = new double[fftWindowSize];
+					
+					boolean increasing = false;
+					double prev = 0;
 		    		
 					while (true) {
 						// Read in new data.
@@ -173,6 +230,7 @@ public class MainActivity extends ActionBarActivity {
 						
 						for (int i = 0; i < num_read; ++i) {
 							short sample = newData[i];
+							
 							fftWindow.addElement(sample);
 							++timeSinceLastFFT;
 //							if (true) {
@@ -200,7 +258,7 @@ public class MainActivity extends ActionBarActivity {
 //								envelopePlot.reset();
 //								envelopePlot.putMultipleSamples(fftOutput);
 								
-								final int spread = 500;
+								final int spread = 5;
 								int targetIndex = (int)((double)frequency / SAMPLE_RATE * fftWindowSize);
 								int minIndex = Math.max(0, targetIndex - spread);
 								int maxIndex = Math.min(targetIndex + spread, fftWindowSize);
@@ -216,8 +274,8 @@ public class MainActivity extends ActionBarActivity {
 //								deltaPlot.setSkip(0);
 //								deltaPlot.putSample(bestVal);
 								
-								plot.setSkip(0);
-								plot.putSample(bestVal);
+								//plot.setSkip(0);
+								//plot.putSample(bestVal);
 								
 								
 								
@@ -241,6 +299,34 @@ public class MainActivity extends ActionBarActivity {
 								deltaData.addElement((short)newDeltaPoint);
 								deltaPlot.setSkip(0);
 								deltaPlot.putSample((short)newDeltaPoint);
+								
+								BitFetcher.Bit latestBit = bitFetcher.interpretNewSample(newDeltaPoint);
+								plot.setSkip(0);
+								switch(latestBit) {
+								case ONE:
+									lastBitSeen = (short)1;
+									break;
+								case ZERO:
+									lastBitSeen = (short)-1;
+									break;
+								}
+								plot.putSample(lastBitSeen);
+								
+//								
+//								{
+//									final int PEAK_THRESHOLD = 50;
+//									// Peak identification
+//									if (increasing && newDeltaPoint <= prev && newDeltaPoint > PEAK_THRESHOLD) {
+//										// We found a peak!
+//										plot.setSkip(0);
+//										plot.putSample((short)3000);
+//									} else {
+//										// No peak here!
+//										plot.putSample((short)0);
+//									}
+//									increasing = newDeltaPoint > prev;
+//									prev = newDeltaPoint;
+//								}
 								
 							
 							}
@@ -333,13 +419,15 @@ public class MainActivity extends ActionBarActivity {
     	byte[] payload = message.getBytes();
     	int packetLength = headerLength + payload.length;
     	
+//    	packetLength = 4; // temporary hack
+    	
     	ByteBuffer packet = ByteBuffer.allocate(packetLength);
     	
-    	packet.putInt(preamble);   
+//    	packet.putInt(preamble);   
 //    	packet.put(srcID);  
 //    	packet.put(dstID);  
 //    	packet.putInt(payload.length);
-//    	packet.put(payload);
+    	packet.put(payload);
     	
     	return packet.array();
     }
@@ -347,10 +435,13 @@ public class MainActivity extends ActionBarActivity {
     public short[] Modulate(byte[] bits) {
     	double amplitude = 1;
     	
+    	
     	int numSamples = bits.length * SYMBOL_LENGTH * 8;
     	
     	short[] buffer = new short[numSamples];
     	  	
+    	String testString = "";
+    	
     	int idx = 0;
     	for (byte b : bits) {
     		for (int i = 7; i >= 0; --i) {
@@ -365,8 +456,15 @@ public class MainActivity extends ActionBarActivity {
     	            buffer[idx++] = shortSample;
     			}
     			
+    			if (bit == 0)
+    				testString += "0";
+    			else
+    				testString += "1";
+    			
     		}
     	}
+    	
+    	Log.i("x", "Message is " + testString);
     	
     	assert idx == numSamples;
     	

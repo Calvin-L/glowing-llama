@@ -13,11 +13,12 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:hint="@string/edit_message" />
+    
     <Button 
+        android:id="@+id/button"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="@string/button_text"
-        android:onClick="pressButton"/>
+        android:text="@string/button_text"/>
 
     <SeekBar
         android:id="@+id/seekBar1"
