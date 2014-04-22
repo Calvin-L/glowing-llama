@@ -209,7 +209,6 @@ public class MainActivity extends FragmentActivity {
 		    		record.startRecording();
 		    		short[] newData = new short[bufferSize / 2];
 		    		int firstRingbufferSize = SYMBOL_LENGTH * 10;   // MAGIC NUMBER
-//		    		RingBuffer absData = new RingBuffer(firstRingbufferSize); 
 		    		RingBuffer bandpassData = new RingBuffer(firstRingbufferSize);
 		    		RingBuffer envelopedData = new RingBuffer(bandpassData.size());
 		    		RingBuffer deltaData = new RingBuffer(bandpassData.size());
@@ -229,7 +228,6 @@ public class MainActivity extends FragmentActivity {
 							
 							fftWindow.addElement(sample);
 							++timeSinceLastFFT;
-//							if (true) {
 							if (timeSinceLastFFT >= fftWindowSize*fftOverlapRatio) {
 							
 								timeSinceLastFFT = 0;
@@ -309,47 +307,9 @@ public class MainActivity extends FragmentActivity {
 									break; // keep lastBitSeen the same
 								}
 								plot.putSample(lastBitSeen);
-								
-//								
-//								{
-//									final int PEAK_THRESHOLD = 50;
-//									// Peak identification
-//									if (increasing && newDeltaPoint <= prev && newDeltaPoint > PEAK_THRESHOLD) {
-//										// We found a peak!
-//										plot.setSkip(0);
-//										plot.putSample((short)3000);
-//									} else {
-//										// No peak here!
-//										plot.putSample((short)0);
-//									}
-//									increasing = newDeltaPoint > prev;
-//									prev = newDeltaPoint;
-//								}
-								
-							
-							}
-							
-//							absData.addElement((short) Math.abs(sample));
-//							
-//							// Calculate the enveloped data point.
-//							double newEnvelopedPoint = 0;
-//							for (int j = 0; j < envelopeKernelSize; ++j) {
-//								newEnvelopedPoint += gaussianKernel[j] * absData.get(convolveStartIndex+j);
-//							}
-//							envelopedData.addElement((short)newEnvelopedPoint);
-//							
-//							// Calculate the delta point.
-//							double newDeltaPoint = 0;
-//							for (int j = 0; j < deltaKernelSize; ++j) {
-//								newDeltaPoint += deltaKernel[j] * envelopedData.get(deltaStartIndex+j);
-//							}
-//							deltaData.addElement((short)newDeltaPoint);
 
-							
-//							plot.putSample(sample);
-//							envelopePlot.putSample((short)newEnvelopedPoint);
-//							deltaPlot.putSample((short)newDeltaPoint);
-										
+							}
+
 						}
 						
 						try {
@@ -383,11 +343,6 @@ public class MainActivity extends FragmentActivity {
     	String message = editText.getText().toString();
 
     	final short[] buffer = Modulate(Send(message));
-
-//        final SimplePlot envelopePlot = (SimplePlot) findViewById(R.id.envelopePlot);
-//        envelopePlot.setSkip(500);
-//    	envelopePlot.putMultipleSamples(Arrays.copyOfRange(buffer, buffer.length / 2 - 100000, buffer.length / 2));
-//    	Log.i("x", "I am envelope plot: " + envelopePlot);
     	
     	// Play the tone.
     	Thread t = new Thread(new Runnable() {
@@ -446,8 +401,6 @@ public class MainActivity extends FragmentActivity {
     			int bit = (b >> i) & 1;
     			
     			for (int j = 0; j < SYMBOL_LENGTH; ++j) {
-//    				double freq = (bit == 0) ? frequency : frequency / 2;
-//    				double sample = amplitude * Math.sin(2 * Math.PI * j / SAMPLE_RATE * frequency);
     	            double sample = amplitude * Math.sin(2 * Math.PI * j / (SAMPLE_RATE/frequency));
     	            sample *= bit;
     	            short shortSample = (short)(sample * 32767);
