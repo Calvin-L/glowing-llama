@@ -29,7 +29,8 @@ public class MainActivity extends FragmentActivity {
 	private static final int ENCODING = AudioFormat.ENCODING_PCM_16BIT;
 	private static final int SAMPLE_RATE = 44100;
 	
-	int SYMBOL_LENGTH = SAMPLE_RATE/500;
+	final int SYMBOL_LENGTH = SAMPLE_RATE/500;
+	final double PEAK_THRESHOLD = 50d;
 
 	private Thread listeningThread = null;
 	private int frequency = 10000; //500; //3700; // Hz
@@ -176,7 +177,7 @@ public class MainActivity extends FragmentActivity {
 				@Override
 				public void run() {
 					
-					BitFetcher bitFetcher = new BitFetcher(SYMBOL_LENGTH, 50);
+					BitFetcher bitFetcher = new BitFetcher(SYMBOL_LENGTH, PEAK_THRESHOLD);
 					short lastBitSeen = 0;
 					
 					// Compute the Gaussian kernel.

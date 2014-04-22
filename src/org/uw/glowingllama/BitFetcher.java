@@ -1,11 +1,11 @@
 package org.uw.glowingllama;
 
 public class BitFetcher {
-	int samplesPerBit;
+	final int symbolLength;
 	boolean lastSawAOne;
 	int timeSinceLastPeak;
-	PeakDetector peakDetector;
-	PeakDetector troughDetector;
+	final PeakDetector peakDetector;
+	final PeakDetector troughDetector;
 	
 	enum Bit 
 	{
@@ -14,9 +14,9 @@ public class BitFetcher {
 		ZERO
 	}
 	
-	BitFetcher(int bitRate, double peakThreshold) 
+	BitFetcher(int symbolLen, double peakThreshold)
 	{
-		samplesPerBit = bitRate;
+		symbolLength = symbolLen;
 		lastSawAOne = false;
 		timeSinceLastPeak = 0;
 		peakDetector = new PeakDetector(peakThreshold);
