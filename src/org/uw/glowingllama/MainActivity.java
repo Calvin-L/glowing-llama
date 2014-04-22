@@ -1,7 +1,6 @@
 package org.uw.glowingllama;
 
 import java.nio.ByteBuffer;
-import java.util.Arrays;
 
 import edu.emory.mathcs.jtransforms.fft.DoubleFFT_1D;
 import android.annotation.SuppressLint;
@@ -220,9 +219,6 @@ public class MainActivity extends FragmentActivity {
 		    		
 		    		int timeSinceLastFFT = 0;
 					double x[] = new double[fftWindowSize];
-					
-					boolean increasing = false;
-					double prev = 0;
 		    		
 					while (true) {
 						// Read in new data.
@@ -309,6 +305,8 @@ public class MainActivity extends FragmentActivity {
 								case ZERO:
 									lastBitSeen = (short)-1;
 									break;
+								case NOTHING:
+									break; // keep lastBitSeen the same
 								}
 								plot.putSample(lastBitSeen);
 								
