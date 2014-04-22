@@ -91,7 +91,7 @@ public class MainActivity extends FragmentActivity {
 							EditText editText = (EditText) findViewById(R.id.edit_message);
 							String message = editText.getText().toString();
 
-							final short[] buffer = Modulate(Send(message));
+							final short[] buffer = modulate(send(message));
 							final int bufferSize = AudioTrack.getMinBufferSize(SAMPLE_RATE, AudioFormat.CHANNEL_OUT_MONO, ENCODING);
 
 							final AudioTrack audioTrack = new AudioTrack(AudioManager.STREAM_MUSIC,
@@ -338,11 +338,11 @@ public class MainActivity extends FragmentActivity {
     }
 
 	public void pressButton(View view) {
-    	EditText editText = (EditText) findViewById(R.id.edit_message);
-    	String message = editText.getText().toString();
+		EditText editText = (EditText) findViewById(R.id.edit_message);
+		String message = editText.getText().toString();
 
-    	final short[] buffer = Modulate(Send(message));
-    	
+		final short[] buffer = modulate(send(message));
+
     	// Play the tone.
     	Thread t = new Thread(new Runnable() {
 
@@ -361,7 +361,7 @@ public class MainActivity extends FragmentActivity {
     }
     
      
-    public byte[] Send(String message) {
+    public byte[] send(String message) {
 
     	int headerLength = 4 + 1 + 1 + 4; // Preamble + src + dst + payload length
     	int preamble = 0xAAAAAAAA;
@@ -384,7 +384,7 @@ public class MainActivity extends FragmentActivity {
     	return packet.array();
     }
 
-    public short[] Modulate(byte[] bits) {
+    public short[] modulate(byte[] bits) {
     	double amplitude = 1;
     	
     	
