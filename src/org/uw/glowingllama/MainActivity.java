@@ -3,7 +3,6 @@ package org.uw.glowingllama;
 import java.nio.ByteBuffer;
 
 import edu.emory.mathcs.jtransforms.fft.DoubleFFT_1D;
-import android.annotation.SuppressLint;
 import android.media.AudioFormat;
 import android.media.AudioManager;
 import android.media.AudioRecord;
@@ -337,8 +336,7 @@ public class MainActivity extends FragmentActivity {
     	Log.i("x", "seekbar: " + progress);
     	frequency = Math.max(progress, 1);
     }
-    
-    @SuppressLint("NewApi")
+
 	public void pressButton(View view) {
     	EditText editText = (EditText) findViewById(R.id.edit_message);
     	String message = editText.getText().toString();
