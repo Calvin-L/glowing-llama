@@ -35,6 +35,13 @@ public class MainActivity extends FragmentActivity {
 	private Thread listeningThread = null;
 	private int frequency = 10000; //500; //3700; // Hz
 
+	/** Number of bytes for the AudioRecord instance's internal buffer */
+	private final int AUDIORECORD_BUFFER_SIZE_IN_BYTES = Math.max(
+			// times 5 arbitrarily, seems to prevent buffer overruns
+			AudioRecord.getMinBufferSize(SAMPLE_RATE, AudioFormat.CHANNEL_IN_MONO, ENCODING) * 5,
+			// times two because there are 2 bytes in a short
+			SAMPLE_RATE * 2);
+
 	@Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -204,11 +211,10 @@ public class MainActivity extends FragmentActivity {
 					int fftWindowSize = bestPowerOfTwo((SAMPLE_RATE / frequency) * 10);
 					double fftOverlapRatio = 0.1;
 					RingBuffer fftWindow = new RingBuffer(fftWindowSize);
-    			
-					int bufferSize = AudioRecord.getMinBufferSize(SAMPLE_RATE, AudioFormat.CHANNEL_IN_MONO, ENCODING);
-		    		final AudioRecord record = new AudioRecord(MediaRecorder.AudioSource.MIC, SAMPLE_RATE, AudioFormat.CHANNEL_IN_MONO, ENCODING, bufferSize);
-		    		record.startRecording();
-		    		short[] newData = new short[bufferSize / 2];
+
+					final AudioRecord record = new AudioRecord(MediaRecorder.AudioSource.MIC, SAMPLE_RATE, AudioFormat.CHANNEL_IN_MONO, ENCODING, AUDIORECORD_BUFFER_SIZE_IN_BYTES);
+					record.startRecording();
+					short[] newData = new short[AUDIORECORD_BUFFER_SIZE_IN_BYTES / 2];
 		    		int firstRingbufferSize = SYMBOL_LENGTH * 10;   // MAGIC NUMBER
 		    		RingBuffer bandpassData = new RingBuffer(firstRingbufferSize);
 		    		RingBuffer envelopedData = new RingBuffer(bandpassData.size());
