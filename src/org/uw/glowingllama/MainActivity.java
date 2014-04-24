@@ -320,8 +320,11 @@ public class MainActivity extends FragmentActivity {
 						for (int i = 0; i < num_read; ++i) {
 							short sample = newData[i];
 
+							// give the sample to the bit parser
 							Bit bit = bitParser.putSample((short)Math.abs(sample));
 							byte[] result = null;
+
+							// if we found a bit, send it to the packet parser
 							switch (bit) {
 							case ZERO:
 								result = packetParser.reportBit(0);
@@ -332,6 +335,8 @@ public class MainActivity extends FragmentActivity {
 							case NOTHING:
 								break; // eh...
 							}
+
+							// if we found a packet, hooray!
 							if (result != null) {
 								String s = new String(result);
 								Log.i("x", "Got packet: '" + s + "'");
