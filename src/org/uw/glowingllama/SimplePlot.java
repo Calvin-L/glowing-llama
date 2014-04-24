@@ -16,10 +16,10 @@ public class SimplePlot extends View {
 	Paint drawPaint = new Paint();
 	int skip = 100;
 	List<Integer> marks = Collections.emptyList();
+	int sampleNum = 0;
 
 	public SimplePlot(Context context, AttributeSet attrs) {
 		super(context, attrs);
-		drawPaint.setColor(Color.BLACK);
 		samples = new RingBuffer(Math.max(getWidth(), 1));
 	}
 	
@@ -31,6 +31,7 @@ public class SimplePlot extends View {
 	
 	public void setMarks(List<Integer> mks) {
 		marks = mks;
+		postInvalidate();
 	}
 
 	@Override
@@ -68,30 +69,36 @@ public class SimplePlot extends View {
 		skip = n;
 	}
 	
-	int sampleNum = 0;
-	
 	public void putSample(short sample) {
 		putMultipleSamples(new short[] {sample});
 	}
 	
-	public void putMultipleSamples(short[] newSamples) {
-//		Log.i("PLOT: " + this, "I got some stuff: " + newSamples.length);
-		boolean didAdd = false;
+	public void putMultipleSamples(short[] newSamples, int start, int end) {
+//		start = Math.max(start, end - samples.size());
 		synchronized(samples) {
-			for (short s : newSamples) {
+			for (int i = start; i < end; ++i) {
+				short s = newSamples[i];
 				++sampleNum;
 				if (skip <= 1 || sampleNum % skip == 0) {
 					samples.addElement(s);
-					didAdd = true;
 				}
 			}
 		}
-		if (didAdd) {
+		if (end - start > 0)
 			postInvalidate();
-		}
 	}
 	
-	
+	public void putMultipleSamples(short[] newSamples) {
+		putMultipleSamples(newSamples, 0, newSamples.length);
+	}
+
+	public void putMultipleSamples(RingBuffer buf) {
+		synchronized(samples) {
+			putMultipleSamples(buf.buffer, buf.head, buf.buffer.length);
+			putMultipleSamples(buf.buffer, 0, buf.head);
+		}
+	}
+
 	public void reset() {
 		synchronized (samples) {
 			sampleNum = 0;
@@ -101,10 +108,6 @@ public class SimplePlot extends View {
 
 	public int getSkip() {
 		return skip;
-	}
-	
-	public short get(int index) {
-		return samples.get(index);
 	}
 
 }
