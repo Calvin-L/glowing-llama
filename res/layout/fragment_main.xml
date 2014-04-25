@@ -9,6 +9,15 @@
     android:paddingTop="@dimen/activity_vertical_margin"
     tools:context="org.uw.glowingllama.MainActivity$PlaceholderFragment" >
 
+	<TextView 	android:id="@+id/messageHistory"
+   		android:layout_width="fill_parent"
+   		android:layout_height="0dip"	
+   		android:layout_weight="3" 
+ 		android:gravity="top"
+   		android:clickable="true"
+   	    android:scrollbars="vertical"
+   	    android:scrollbarSize="5dp" />
+    
     <EditText android:id="@+id/edit_message"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
@@ -33,7 +42,7 @@
         android:text="@string/listen_button_text"
         android:onClick="toggleListen" />
     
-    <org.uw.glowingllama.SimplePlot
+  <org.uw.glowingllama.SimplePlot
         android:id="@+id/simplePlot"
         android:layout_width="wrap_content"
         android:layout_height="0dp"
@@ -56,6 +65,6 @@
         android:id="@+id/spectoPlot"
         android:layout_width="wrap_content"
         android:layout_height="0dp"
-        android:layout_weight="4" />
+        android:layout_weight="4" /> 
 
 </LinearLayout>

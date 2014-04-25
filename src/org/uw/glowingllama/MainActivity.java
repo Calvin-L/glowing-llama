@@ -10,6 +10,8 @@ import android.media.AudioRecord;
 import android.media.AudioTrack;
 import android.media.MediaRecorder;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Message;
 import android.support.v4.app.Fragment;
 import android.support.v4.app.FragmentActivity;
 import android.util.Log;
@@ -22,6 +24,7 @@ import android.view.ViewGroup;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.SeekBar;
+import android.widget.TextView;
 import android.widget.ToggleButton;
 import edu.emory.mathcs.jtransforms.fft.DoubleFFT_1D;
 
@@ -38,12 +41,13 @@ public class MainActivity extends FragmentActivity {
 	final int PERIODS_PER_FFT_WINDOW = 2;
 
 	final byte[] PREAMBLE = new byte[] { (byte) 0xAA, (byte) 0xAA, (byte) 0xAA, (byte) 0xAA };
-
 	final double FFT_OVERLAP_RATIO = 0.2; // 0 = fft every sample, 1 = fft windows do not overlap
 
-	private Thread listeningThread = null;
 	private int frequency = 4410; //10000; //6342; //500; //3700; // Hz
+	private Thread listeningThread = null;
 
+	
+	
 	/** Number of bytes for the AudioRecord instance's internal buffer */
 	private final int AUDIORECORD_BUFFER_SIZE_IN_BYTES = Math.max(
 			// times 5 arbitrarily, seems to prevent buffer overruns
@@ -51,6 +55,18 @@ public class MainActivity extends FragmentActivity {
 			// times two because there are 2 bytes in a short
 			SAMPLE_RATE * 2);
 
+	
+	Handler handler = new Handler() {
+		@Override
+		public void handleMessage(Message msg) {			  
+				Bundle bundle = msg.getData();
+				String receivedMessage = bundle.getString("receivedMessage");
+				TextView myTextView = 
+		                     (TextView)findViewById(R.id.messageHistory);
+				myTextView.append("Friend: " + receivedMessage + "\n");
+			      }
+		 };
+	
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
@@ -101,12 +117,18 @@ public class MainActivity extends FragmentActivity {
 					if (sendThread != null) {
 						sendThread.interrupt();
 					}
+					
+					EditText editText = (EditText) findViewById(R.id.edit_message);
+					final String message = editText.getText().toString();
+					TextView messageHistory = (TextView) findViewById(R.id.messageHistory);
+					messageHistory.append("Me: " + message + "\n");
+					
 					sendThread = new Thread(new Runnable() {
 
 						@Override
 						public void run() {
-							EditText editText = (EditText) findViewById(R.id.edit_message);
-							String message = editText.getText().toString();
+//							EditText editText = (EditText) findViewById(R.id.edit_message);
+//							String message = editText.getText().toString();
 
 							final short[] buffer = modulate(send(message));
 							final int bufferSize = AudioTrack.getMinBufferSize(SAMPLE_RATE, AudioFormat.CHANNEL_OUT_MONO, ENCODING);
@@ -244,17 +266,16 @@ public class MainActivity extends FragmentActivity {
 //
 //						Log.i("result", Arrays.toString(x));
 //					}
-
-
-					short lastBitSeen = 0;
+					
 					final int fftWindowSize = PERIODS_PER_FFT_WINDOW * SAMPLE_RATE / frequency;
-					final int samplesBetweenFFTRecomputes = (int)Math.ceil(fftWindowSize * FFT_OVERLAP_RATIO);
-					final int fftSamplesPerBit = (int)((double)SYMBOL_LENGTH / samplesBetweenFFTRecomputes);
+					final int samplesBetweenFftRecomputes = (int)Math.ceil(fftWindowSize * FFT_OVERLAP_RATIO);
+					final int fftSamplesPerBit = (int)((double)SYMBOL_LENGTH / samplesBetweenFftRecomputes);
+					short lastBitSeen = 0;
 					final BitFetcher bitFetcher = new BitFetcher(fftSamplesPerBit, PEAK_THRESHOLD);
 
 					// Compute the Gaussian kernel.
 					int envelopeKernelSize = bestOddNumber(fftSamplesPerBit);
-					//					int envelopeKernelSize = bestOddNumber((int)(10.0*SAMPLE_RATE/frequency));
+//					int envelopeKernelSize = bestOddNumber((int)(10.0*SAMPLE_RATE/frequency));
 					double[] gaussianKernel = new double[envelopeKernelSize];
 					double stdDev = envelopeKernelSize / 2.0;   // MAGIC NUMBER
 					for (int i = 0; i < envelopeKernelSize; ++i) {
@@ -273,7 +294,6 @@ public class MainActivity extends FragmentActivity {
 						else 
 							deltaKernel[i] = 1;
 					}
-					
 
 					// Initialize objects for computing and storing FFT.
 					RingBuffer fftWindow = new RingBuffer(fftWindowSize);
@@ -282,7 +302,7 @@ public class MainActivity extends FragmentActivity {
 					short[] fftOutput = new short[halfRoundedUp(fftWindowSize)];
 					DoubleFFT_1D jfft = new DoubleFFT_1D(fftWindowSize);
 					
-					// Containers to store results and relevant indices.
+					// Containers to track results and relevant indices.
 					short[] newData = new short[AUDIORECORD_BUFFER_SIZE_IN_BYTES / 2];
 					int firstRingbufferSize = SYMBOL_LENGTH * 10;   // MAGIC NUMBER
 					RingBuffer bandpassData = new RingBuffer(firstRingbufferSize);
@@ -342,6 +362,12 @@ public class MainActivity extends FragmentActivity {
 							if (result != null) {
 								String s = new String(result);
 								Log.i("x", "Got packet: '" + s + "'");
+
+								Message msg = handler.obtainMessage();
+				    			Bundle bundle = new Bundle();
+				    			bundle.putString("receivedMessage", s);
+				                msg.setData(bundle);
+				                handler.sendMessage(msg);
 							}
 
 //							try {
@@ -357,11 +383,13 @@ public class MainActivity extends FragmentActivity {
 //							plot.setSkip(1);
 //							plot.putMultipleSamples(newData);
 
+							
+
 							if (0 == 1) {
 
 								fftWindow.addElement(sample);
 								++timeSinceLastFFT;
-								if (timeSinceLastFFT >= samplesBetweenFFTRecomputes) {
+								if (timeSinceLastFFT >= samplesBetweenFftRecomputes) {
 
 									timeSinceLastFFT = 0;
 
@@ -541,6 +569,8 @@ public class MainActivity extends FragmentActivity {
 									 */
 								}
 							}
+							
+
 
 						}
 
@@ -622,7 +652,7 @@ public class MainActivity extends FragmentActivity {
 		//    	for (int i = 0; i < packetLength; ++i) {
 		//    		packet.put((byte)0xFF);
 		//    	}
-
+		
 		return packet.array();
 	}
 
