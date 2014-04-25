@@ -196,24 +196,24 @@ public class MainActivity extends FragmentActivity {
 						gaussianKernel[i] = computeGaussian(stdDev, envelopeKernelSize/2.0, i);
 					}
 
+					// Compute the delta kernel, for finding the derivative of a signal.
 					int deltaKernelSize = bestOddNumber((int)(2.0*SAMPLE_RATE/frequency));
 					double[] deltaKernel = new double[deltaKernelSize];
 					for (int i = 0; i < deltaKernelSize; ++i) {
-						if (i < deltaKernelSize / 2) {
+						if (i < deltaKernelSize / 2)
 							deltaKernel[i] = -1;
-						} else if (i == deltaKernelSize / 2) {
-							deltaKernel[i] = 0;
-						} else {
+						else if (i == deltaKernelSize / 2) 
+							deltaKernel[i] = 0; 
+						else 
 							deltaKernel[i] = 1;
-						}
 					}
 					
+					// Initialize the window for computing the FFT of audio samples.
 					int fftWindowSize = bestPowerOfTwo((SAMPLE_RATE / frequency) * 10);
 					double fftOverlapRatio = 0.1;
 					RingBuffer fftWindow = new RingBuffer(fftWindowSize);
-
-					final AudioRecord record = new AudioRecord(MediaRecorder.AudioSource.MIC, SAMPLE_RATE, AudioFormat.CHANNEL_IN_MONO, ENCODING, AUDIORECORD_BUFFER_SIZE_IN_BYTES);
-					record.startRecording();
+					
+					// Containers to store results and relevant indices.
 					short[] newData = new short[AUDIORECORD_BUFFER_SIZE_IN_BYTES / 2];
 		    		int firstRingbufferSize = SYMBOL_LENGTH * 10;   // MAGIC NUMBER
 		    		RingBuffer bandpassData = new RingBuffer(firstRingbufferSize);
@@ -221,6 +221,10 @@ public class MainActivity extends FragmentActivity {
 		    		RingBuffer deltaData = new RingBuffer(bandpassData.size());
 		    		int envelopeStartIndex = bandpassData.size() - envelopeKernelSize;
 		    		int deltaStartIndex = envelopedData.size() - deltaKernelSize;
+
+		    		// 
+					final AudioRecord record = new AudioRecord(MediaRecorder.AudioSource.MIC, SAMPLE_RATE, AudioFormat.CHANNEL_IN_MONO, ENCODING, AUDIORECORD_BUFFER_SIZE_IN_BYTES);
+					record.startRecording();
 		    				    		
 		    		
 		    		int timeSinceLastFFT = 0;
