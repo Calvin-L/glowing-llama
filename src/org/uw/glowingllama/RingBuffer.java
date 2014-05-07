@@ -6,7 +6,7 @@ public class RingBuffer implements Iterable<Short> {
 	int bufferSize;
 	short[] buffer;
 	int head;
-	
+
 	public RingBuffer(int capacity) {
 		bufferSize = capacity;
 		buffer = new short[bufferSize];
@@ -15,31 +15,31 @@ public class RingBuffer implements Iterable<Short> {
 		}
 		head = 0;
 	}
-	
+
 	public void addElement(short element) {
 		buffer[head] = element;
 		++head;
 		head = head % bufferSize;
 	}
-	
+
 	public void addAll(short[] element) {
 		for (short e : element) {
 			addElement(e);
 		}
 	}
-	
+
 	public void addAll(RingBuffer b) {
 		for (short s : b) {
 			addElement(s);
 		}
 	}
-	
+
 	public short get(int index) {
 		assert index >= 0;
 		assert index < bufferSize;
 		return buffer[(index + head) % bufferSize];
 	}
-	
+
 	public int size() {
 		return bufferSize;
 	}
@@ -51,7 +51,7 @@ public class RingBuffer implements Iterable<Short> {
 		bufferSize = newCapacity;
 		head = b.head;
 	}
-	
+
 	public void reset() {
 		head = 0;
 	}
@@ -59,7 +59,7 @@ public class RingBuffer implements Iterable<Short> {
 	@Override
 	public Iterator<Short> iterator() {
 		return new Iterator<Short>() {
-			
+
 			int i = 0;
 
 			@Override
@@ -76,8 +76,14 @@ public class RingBuffer implements Iterable<Short> {
 			public void remove() {
 				throw new UnsupportedOperationException();
 			}
-			
+
 		};
 	}
-	
+
+	public void clear() {
+		for (int i = 0; i < buffer.length; ++i) {
+			buffer[i] = 0;
+		}
+	}
+
 }

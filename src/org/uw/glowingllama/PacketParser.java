@@ -65,6 +65,7 @@ public class PacketParser {
 			// if the last few bits equal the preamble, transition to the
 			// READING_HEADER state
 			if (preambleFound(preamble, preambleDetection)) {
+				preambleDetection.clear();
 				Log.i("x", "PREAMBLE FOUND!");
 				mode = Mode.READING_HEADER;
 			}
