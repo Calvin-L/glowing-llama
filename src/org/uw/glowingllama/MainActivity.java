@@ -1,6 +1,12 @@
 package org.uw.glowingllama;
 
+import java.io.BufferedWriter;
+import java.io.File;
+import java.io.FileWriter;
+import java.io.IOException;
+import java.io.Writer;
 import java.nio.ByteBuffer;
+import java.util.Random;
 
 import org.uw.glowingllama.BitFetcher.Bit;
 
@@ -47,8 +53,8 @@ public class MainActivity extends FragmentActivity {
 	private int frequency = 4410; //10000; //6342; //500; //3700; // Hz
 	private Thread listeningThread = null;
 
-	
-	
+
+
 	/** Number of bytes for the AudioRecord instance's internal buffer */
 	private final int AUDIORECORD_BUFFER_SIZE_IN_BYTES = Math.max(
 			// times 5 arbitrarily, seems to prevent buffer overruns
@@ -56,18 +62,18 @@ public class MainActivity extends FragmentActivity {
 			// times two because there are 2 bytes in a short
 			SAMPLE_RATE * 2);
 
-	
+
 	Handler handler = new Handler() {
 		@Override
-		public void handleMessage(Message msg) {			  
-				Bundle bundle = msg.getData();
-				String receivedMessage = bundle.getString("receivedMessage");
-				TextView msgHistTextView = 
-		                     (TextView)findViewById(R.id.messageHistory);
-				msgHistTextView.append("Friend: " + receivedMessage + "\n");
-			      }
-		 };
-	
+		public void handleMessage(Message msg) {
+			Bundle bundle = msg.getData();
+			String receivedMessage = bundle.getString("receivedMessage");
+			TextView msgHistTextView =
+					(TextView)findViewById(R.id.messageHistory);
+			msgHistTextView.append("Friend: " + receivedMessage + "\n");
+		}
+	};
+
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
@@ -86,14 +92,14 @@ public class MainActivity extends FragmentActivity {
 
 		TextView msgHistTextView = (TextView)findViewById(R.id.messageHistory);
 		msgHistTextView.setMovementMethod(new ScrollingMovementMethod());
-		
+
 		SeekBar seekBar = (SeekBar) findViewById(R.id.seekBar1);
 		seekBar.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
 
 			@Override
 			public void onProgressChanged(SeekBar seekBar, int progress,
 					boolean fromUser) {
-				updateFreq(progress);  // Temporarily commented out
+				//				updateFreq(progress);  // Temporarily commented out
 			}
 
 			@Override
@@ -121,30 +127,32 @@ public class MainActivity extends FragmentActivity {
 					if (sendThread != null) {
 						sendThread.interrupt();
 					}
-					
+
 					EditText editText = (EditText) findViewById(R.id.edit_message);
 					final String message = editText.getText().toString();
 					TextView messageHistory = (TextView) findViewById(R.id.messageHistory);
 					messageHistory.append("Me: " + message + "\n");
-					
+
 					sendThread = new Thread(new Runnable() {
 
 						@Override
 						public void run() {
-//							EditText editText = (EditText) findViewById(R.id.edit_message);
-//							String message = editText.getText().toString();
+							//							EditText editText = (EditText) findViewById(R.id.edit_message);
+							//							String message = editText.getText().toString();
+							pressButton(null);
+							if (1 == 0) {
+								final short[] buffer = modulate(send(message));
+								final int bufferSize = AudioTrack.getMinBufferSize(SAMPLE_RATE, AudioFormat.CHANNEL_OUT_MONO, ENCODING);
 
-							final short[] buffer = modulate(send(message));
-							final int bufferSize = AudioTrack.getMinBufferSize(SAMPLE_RATE, AudioFormat.CHANNEL_OUT_MONO, ENCODING);
-
-							final AudioTrack audioTrack = new AudioTrack(AudioManager.STREAM_MUSIC,
-									SAMPLE_RATE, AudioFormat.CHANNEL_OUT_MONO,
-									ENCODING, bufferSize, AudioTrack.MODE_STREAM);
-							audioTrack.play();
-							while (!Thread.interrupted()) {
-								audioTrack.write(buffer, 0, buffer.length);
+								final AudioTrack audioTrack = new AudioTrack(AudioManager.STREAM_MUSIC,
+										SAMPLE_RATE, AudioFormat.CHANNEL_OUT_MONO,
+										ENCODING, bufferSize, AudioTrack.MODE_STREAM);
+								audioTrack.play();
+								while (!Thread.interrupted()) {
+									audioTrack.write(buffer, 0, buffer.length);
+								}
+								audioTrack.stop();
 							}
-							audioTrack.stop();
 						}
 
 					});
@@ -192,7 +200,6 @@ public class MainActivity extends FragmentActivity {
 			final SimplePlot plot = (SimplePlot) findViewById(R.id.simplePlot);
 			final SimplePlot envelopePlot = (SimplePlot) findViewById(R.id.envelopePlot);
 			final SimplePlot deltaPlot = (SimplePlot) findViewById(R.id.deltaPlot);
-			final SpectrogramPlot spectoPlot = (SpectrogramPlot) findViewById(R.id.spectoPlot);
 
 			//            assert plot != null;
 			listeningThread = new Thread(new Runnable() {
@@ -237,40 +244,42 @@ public class MainActivity extends FragmentActivity {
 				@Override
 				public void run() {
 
-//					{
-//						int windowSize = 3 * SAMPLE_RATE / frequency;
-//						Log.i("Window size", "" + windowSize);
-//						double[] x = new double[windowSize];
-//						for (int i = 0; i < x.length; ++i) {
-//							x[i] = Math.sin(2 * Math.PI * i / ((double)SAMPLE_RATE/frequency));
-////							x[i] = Math.sin(2 * Math.PI * i / 8);
-//						}
-//
-//						plot.reset();
-//						plot.setSkip(1);
-//						plot.putMultipleSamples(asShorts(x, 300));
-//
-//						DoubleFFT_1D jfft = new DoubleFFT_1D(windowSize);
-//						jfft.realForward(x);
-//
-//						for (int i = 0; i < x.length; i += 2) {
-//							x[i] = 0;
-//						}
-//
-//						envelopePlot.reset();
-//						envelopePlot.setSkip(1);
-//						envelopePlot.putMultipleSamples(asShorts(x, 300));
-//
-//						int targetIndex = (int)((double)frequency / SAMPLE_RATE * windowSize + 1) * 2;
-//						Log.i("target index", "" + targetIndex);
-//						envelopePlot.setMarks(Arrays.asList(
-//								envelopePlot.getWidth() + (-windowSize*2 + 0) / envelopePlot.getSkip(),
-//								envelopePlot.getWidth() + (-windowSize*2 + targetIndex) / envelopePlot.getSkip(),
-//								envelopePlot.getWidth() + (-windowSize*2 + windowSize * 2 - 1) / envelopePlot.getSkip()));
-//
-//						Log.i("result", Arrays.toString(x));
-//					}
-					
+
+
+					//					{
+					//						int windowSize = 3 * SAMPLE_RATE / frequency;
+					//						Log.i("Window size", "" + windowSize);
+					//						double[] x = new double[windowSize];
+					//						for (int i = 0; i < x.length; ++i) {
+					//							x[i] = Math.sin(2 * Math.PI * i / ((double)SAMPLE_RATE/frequency));
+					////							x[i] = Math.sin(2 * Math.PI * i / 8);
+					//						}
+					//
+					//						plot.reset();
+					//						plot.setSkip(1);
+					//						plot.putMultipleSamples(asShorts(x, 300));
+					//
+					//						DoubleFFT_1D jfft = new DoubleFFT_1D(windowSize);
+					//						jfft.realForward(x);
+					//
+					//						for (int i = 0; i < x.length; i += 2) {
+					//							x[i] = 0;
+					//						}
+					//
+					//						envelopePlot.reset();
+					//						envelopePlot.setSkip(1);
+					//						envelopePlot.putMultipleSamples(asShorts(x, 300));
+					//
+					//						int targetIndex = (int)((double)frequency / SAMPLE_RATE * windowSize + 1) * 2;
+					//						Log.i("target index", "" + targetIndex);
+					//						envelopePlot.setMarks(Arrays.asList(
+					//								envelopePlot.getWidth() + (-windowSize*2 + 0) / envelopePlot.getSkip(),
+					//								envelopePlot.getWidth() + (-windowSize*2 + targetIndex) / envelopePlot.getSkip(),
+					//								envelopePlot.getWidth() + (-windowSize*2 + windowSize * 2 - 1) / envelopePlot.getSkip()));
+					//
+					//						Log.i("result", Arrays.toString(x));
+					//					}
+
 					final int fftWindowSize = PERIODS_PER_FFT_WINDOW * SAMPLE_RATE / frequency;
 					final int samplesBetweenFftRecomputes = (int)Math.ceil(fftWindowSize * FFT_OVERLAP_RATIO);
 					final int fftSamplesPerBit = (int)((double)SYMBOL_LENGTH / samplesBetweenFftRecomputes);
@@ -279,7 +288,7 @@ public class MainActivity extends FragmentActivity {
 
 					// Compute the Gaussian kernel.
 					int envelopeKernelSize = bestOddNumber(fftSamplesPerBit);
-//					int envelopeKernelSize = bestOddNumber((int)(10.0*SAMPLE_RATE/frequency));
+					//					int envelopeKernelSize = bestOddNumber((int)(10.0*SAMPLE_RATE/frequency));
 					double[] gaussianKernel = new double[envelopeKernelSize];
 					double stdDev = envelopeKernelSize / 2.0;   // MAGIC NUMBER
 					for (int i = 0; i < envelopeKernelSize; ++i) {
@@ -287,15 +296,15 @@ public class MainActivity extends FragmentActivity {
 					}
 
 					// Compute the delta kernel, for finding the derivative of a signal.
-//					int deltaKernelSize = bestOddNumber((int)(2.0*SAMPLE_RATE/frequency));
+					//					int deltaKernelSize = bestOddNumber((int)(2.0*SAMPLE_RATE/frequency));
 					int deltaKernelSize = bestOddNumber(fftSamplesPerBit);
 					double[] deltaKernel = new double[deltaKernelSize];
 					for (int i = 0; i < deltaKernelSize; ++i) {
 						if (i < deltaKernelSize / 2)
 							deltaKernel[i] = -1;
-						else if (i == deltaKernelSize / 2) 
-							deltaKernel[i] = 0; 
-						else 
+						else if (i == deltaKernelSize / 2)
+							deltaKernel[i] = 0;
+						else
 							deltaKernel[i] = 1;
 					}
 
@@ -305,7 +314,7 @@ public class MainActivity extends FragmentActivity {
 					double x[] = new double[fftWindowSize];
 					short[] fftOutput = new short[halfRoundedUp(fftWindowSize)];
 					DoubleFFT_1D jfft = new DoubleFFT_1D(fftWindowSize);
-					
+
 					// Containers to track results and relevant indices.
 					short[] newData = new short[AUDIORECORD_BUFFER_SIZE_IN_BYTES / 2];
 					int firstRingbufferSize = SYMBOL_LENGTH * 10;   // MAGIC NUMBER
@@ -316,35 +325,83 @@ public class MainActivity extends FragmentActivity {
 					int deltaStartIndex = envelopedData.size() - deltaKernelSize;
 
 
-//					int exactPeriod = SAMPLE_RATE / frequency;
-//					if (SAMPLE_RATE % frequency != 0)
-//						Log.w("x", "Sample rate is not evenly divisible by frequency");
-//					RingBuffer buf = new RingBuffer(exactPeriod);
+					//					int exactPeriod = SAMPLE_RATE / frequency;
+					//					if (SAMPLE_RATE % frequency != 0)
+					//						Log.w("x", "Sample rate is not evenly divisible by frequency");
+					//					RingBuffer buf = new RingBuffer(exactPeriod);
 
-//					File outputFile = new File(getExternalFilesDir(null), "audio.txt");
-//					assert outputFile.canWrite();
-//					Log.i("x", "Writing audio to " + outputFile.getAbsolutePath());
-//					Writer writer = null;
-//					try {
-//						writer = new BufferedWriter(new FileWriter(outputFile));
-//					} catch (IOException e) {
-//						Log.w("x", "file open failed");
-//						e.printStackTrace();
-//						return;
-//					}
+					// Initialize writing to file.
+					File outputFile = new File(getExternalFilesDir(null), "audio.txt");
+					Log.i("x", "Writing audio to " + outputFile.getAbsolutePath());
+					Writer writer = null;
 
-					final ThresholdingBitParser bitParser = new ThresholdingBitParser(SYMBOL_LENGTH, 4000, SYMBOL_LENGTH/2);
+					File rawOutputFile = new File(getExternalFilesDir(null), "raw_audio.txt");
+					Log.i("x", "Writing audio to " + rawOutputFile.getAbsolutePath());
+					Writer rawWriter = null;
+
+					try {
+						writer = new BufferedWriter(new FileWriter(outputFile));
+						rawWriter = new BufferedWriter(new FileWriter(rawOutputFile));
+					} catch (IOException e) {
+						Log.w("x", "file open failed");
+						e.printStackTrace();
+						return;
+					}
+
+					final ThresholdingBitParser bitParser = new ThresholdingBitParser(SYMBOL_LENGTH, 4000, SYMBOL_LENGTH/4);
 					final PacketParser packetParser = new PacketParser(PREAMBLE);
 
 					final AudioRecord record = new AudioRecord(MediaRecorder.AudioSource.MIC, SAMPLE_RATE, AudioFormat.CHANNEL_IN_MONO, ENCODING, AUDIORECORD_BUFFER_SIZE_IN_BYTES);
 					record.startRecording();
-					
+
+
+
+					final int samplesPerWavelength = SAMPLE_RATE / frequency;
+					MinMaxFilter maxWindow = new MinMaxFilter(10*samplesPerWavelength);
+					RingBuffer maybePreambleSignal = new RingBuffer(SYMBOL_LENGTH*PREAMBLE.length*8);
+
+					plot.setSkip(1);
+
 					while (!Thread.interrupted()) {
 						// Read in new data.
 						int num_read = record.read(newData, 0, newData.length);
 
 						for (int i = 0; i < num_read; ++i) {
 							short sample = newData[i];
+
+							// Take 4.
+							maxWindow.put((short)Math.abs(sample));
+							maybePreambleSignal.addElement(maxWindow.max());
+							//							plot.putSample(maxWindow.max());
+
+							// Assuming signal looks great...
+
+
+
+
+							try {
+								rawWriter.write(Integer.toString(Math.abs(sample)));
+								rawWriter.write('\n');
+								writer.write(Short.toString(maxWindow.max()));
+								writer.write('\n');
+							} catch (IOException e) {
+								Log.w("x", "write failed");
+								e.printStackTrace();
+								break;
+							}
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 							// give the sample to the bit parser
 							Bit bit = bitParser.putSample((short)Math.abs(sample));
@@ -368,26 +425,18 @@ public class MainActivity extends FragmentActivity {
 								Log.i("x", "Got packet: '" + s + "'");
 
 								Message msg = handler.obtainMessage();
-				    			Bundle bundle = new Bundle();
-				    			bundle.putString("receivedMessage", s);
-				                msg.setData(bundle);
-				                handler.sendMessage(msg);
+								Bundle bundle = new Bundle();
+								bundle.putString("receivedMessage", s);
+								msg.setData(bundle);
+								handler.sendMessage(msg);
 							}
 
-//							try {
-//								writer.write(Short.toString(sample));
-//								writer.write('\n');
-//							} catch (IOException e) {
-//								Log.w("x", "write failed");
-//								e.printStackTrace();
-//								break;
-//							}
 
 							// Visualize incoming data
-//							plot.setSkip(1);
-//							plot.putMultipleSamples(newData);
+							//							plot.setSkip(1);
+							//							plot.putMultipleSamples(newData);
 
-							
+
 
 							if (0 == 1) {
 
@@ -573,7 +622,7 @@ public class MainActivity extends FragmentActivity {
 									 */
 								}
 							}
-							
+
 
 
 						}
@@ -587,13 +636,15 @@ public class MainActivity extends FragmentActivity {
 
 					Log.i("x", "Stopping listening...");
 					record.stop();
-					//					try {
-					//						writer.flush();
-					//						writer.close();
-					//					} catch (IOException e) {
-					//						Log.w("x", "buf close failed");
-					//						e.printStackTrace();
-					//					}
+					try {
+						writer.flush();
+						writer.close();
+						rawWriter.flush();
+						rawWriter.close();
+					} catch (IOException e) {
+						Log.w("x", "buf close failed");
+						e.printStackTrace();
+					}
 
 				}
 
@@ -612,11 +663,21 @@ public class MainActivity extends FragmentActivity {
 		frequency = Math.max(progress, 1);
 	}
 
-	public void pressButton(View view) {
-		EditText editText = (EditText) findViewById(R.id.edit_message);
-		String message = editText.getText().toString();
 
-		final short[] buffer = modulate(send(message));
+	private static final char[] alphabet = new char[] { 'a', 'b', 'c', 'd', 'e', 'f', 'g', ' ' };
+	public String genStr(int nchars, int seed) {
+		final char[] chars = new char[nchars];
+		Random r = new Random(seed);
+		for (int i = 0; i < nchars; ++i) {
+			chars[i] = alphabet[r.nextInt(alphabet.length)];
+		}
+		return new String(chars);
+	}
+
+	public void pressButton(View view) {
+		//		EditText editText = (EditText) findViewById(R.id.edit_message);
+		//		String message = editText.getText().toString();
+		//		final short[] buffer = modulate(send(message));
 
 		// Play the tone.
 		Thread t = new Thread(new Runnable() {
@@ -627,7 +688,16 @@ public class MainActivity extends FragmentActivity {
 						SAMPLE_RATE, AudioFormat.CHANNEL_OUT_MONO,
 						ENCODING, AudioTrack.getMinBufferSize(SAMPLE_RATE, AudioFormat.CHANNEL_OUT_MONO, ENCODING), AudioTrack.MODE_STREAM);
 				audioTrack.play();
-				audioTrack.write(buffer, 0, buffer.length);
+
+				final int npackets = 3;
+				final int charsPerPacket = 30;
+				for (int i = 0; i < npackets; ++i) {
+					final String s = genStr(charsPerPacket, i);
+					Log.i("x", "sending '" + s + "'");
+					final short[] buffer = modulate(send(s));
+					audioTrack.write(buffer, 0, buffer.length);
+				}
+
 				audioTrack.stop();
 			}
 
@@ -656,7 +726,7 @@ public class MainActivity extends FragmentActivity {
 		//    	for (int i = 0; i < packetLength; ++i) {
 		//    		packet.put((byte)0xFF);
 		//    	}
-		
+
 		return packet.array();
 	}
 
@@ -667,7 +737,7 @@ public class MainActivity extends FragmentActivity {
 
 		short[] buffer = new short[numSamples];
 
-		String testString = "";
+		//		String testString = "";
 
 		int idx = 0;
 		for (byte b : bits) {
@@ -682,15 +752,15 @@ public class MainActivity extends FragmentActivity {
 				}
 
 
-				if (bit == 0)
-					testString += "0";
-				else
-					testString += "1";
+				//				if (bit == 0)
+				//					testString += "0";
+				//				else
+				//					testString += "1";
 
 			}
 		}
 
-		Log.i("x", "Message is " + testString);
+		//		Log.i("x", "Message is " + testString);
 
 		assert idx == numSamples;
 
