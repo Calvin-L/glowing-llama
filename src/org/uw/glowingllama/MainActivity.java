@@ -14,6 +14,7 @@ import android.os.Handler;
 import android.os.Message;
 import android.support.v4.app.Fragment;
 import android.support.v4.app.FragmentActivity;
+import android.text.method.ScrollingMovementMethod;
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.Menu;
@@ -61,9 +62,9 @@ public class MainActivity extends FragmentActivity {
 		public void handleMessage(Message msg) {			  
 				Bundle bundle = msg.getData();
 				String receivedMessage = bundle.getString("receivedMessage");
-				TextView myTextView = 
+				TextView msgHistTextView = 
 		                     (TextView)findViewById(R.id.messageHistory);
-				myTextView.append("Friend: " + receivedMessage + "\n");
+				msgHistTextView.append("Friend: " + receivedMessage + "\n");
 			      }
 		 };
 	
@@ -83,6 +84,9 @@ public class MainActivity extends FragmentActivity {
 	protected void onPostCreate(Bundle savedInstanceState) {
 		super.onPostCreate(savedInstanceState);
 
+		TextView msgHistTextView = (TextView)findViewById(R.id.messageHistory);
+		msgHistTextView.setMovementMethod(new ScrollingMovementMethod());
+		
 		SeekBar seekBar = (SeekBar) findViewById(R.id.seekBar1);
 		seekBar.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
 
