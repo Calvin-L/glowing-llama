@@ -56,6 +56,48 @@ public class RingBuffer implements Iterable<Short> {
 		head = 0;
 	}
 
+	public short min() {
+		return get(indexOfMin());
+	}
+
+	public short max() {
+		return get(indexOfMax());
+	}
+
+	public int indexOfMin() {
+		int index = 0;
+		short min = get(0);
+		for (int i = 1; i < size(); ++i) {
+			short s = get(i);
+			if (s < min) {
+				min = s;
+				index = i;
+			}
+		}
+		return index;
+	}
+
+	public int indexOfMax() {
+		int index = 0;
+		short max = get(0);
+		for (int i = 1; i < size(); ++i) {
+			short s = get(i);
+			if (s > max) {
+				max = s;
+				index = i;
+			}
+		}
+		return index;
+	}
+
+	public int sum() {
+		int sum = 0;
+		for (short s : buffer) {
+			sum += s;
+		}
+		return sum;
+	}
+
 	@Override
 	public Iterator<Short> iterator() {
 		return new Iterator<Short>() {
