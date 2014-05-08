@@ -2,6 +2,8 @@ package org.uw.glowingllama;
 
 import org.uw.glowingllama.BitFetcher.Bit;
 
+import android.util.Log;
+
 /**
  * A class for extracting bits from a raw signal. Give it the absolute value
  * of the incoming audio samples ({@link #putSample(short)}) and it will give
@@ -39,6 +41,7 @@ public class ThresholdingBitParser {
 		samplesSinceLastHighSample = Integer.MAX_VALUE;
 	}
 
+	StringBuilder builder = new StringBuilder();
 	public Bit putSample(short sample) {
 		Bit result = Bit.NOTHING;
 
@@ -48,8 +51,17 @@ public class ThresholdingBitParser {
 
 			// Alignment: if it's been a long time since the last high sample,
 			// then we are likely at the start of a bit.
-			// (TODO: 128 is a really arbitrary number)
-			if (samplesSinceLastHighSample > expectedBitLength * 128) {
+			// (TODO: 4 is a really arbitrary number)
+			if (samplesSinceLastHighSample > expectedBitLength * 4) {
+				if (n >= expectedBitLength / 2) {
+					// Hrm... it *kinda* looks like there should be a zero
+					// here since enough low samples have elapsed...
+					result = Bit.ZERO;
+				}
+				//else {
+				//	Log.i(getClass().toString(), "Dropped a bit??? n=" + n + "/" + expectedBitLength);
+				//}
+				//Log.i(getClass().toString(), "realigned; delta=" + n);
 				n = 0;
 			}
 
@@ -67,6 +79,14 @@ public class ThresholdingBitParser {
 		}
 
 		++n;
+
+		if (result != Bit.NOTHING)
+			builder.append(result == Bit.ZERO ? "0" : "1");
+		if (builder.length() >= 64) {
+			Log.i(getClass().toString(), builder.toString());
+			builder = new StringBuilder();
+		}
+
 		return result;
 	}
 
