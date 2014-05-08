@@ -354,11 +354,13 @@ public class MainActivity extends FragmentActivity {
 					final AudioRecord record = new AudioRecord(MediaRecorder.AudioSource.MIC, SAMPLE_RATE, AudioFormat.CHANNEL_IN_MONO, ENCODING, AUDIORECORD_BUFFER_SIZE_IN_BYTES);
 					record.startRecording();
 
+					final int bitsInPreamble = PREAMBLE.length*8;
 
 
 					final int samplesPerWavelength = SAMPLE_RATE / frequency;
-					MinMaxFilter maxWindow = new MinMaxFilter(10*samplesPerWavelength);
+					MinMaxFilter maxWindow = new MinMaxFilter(20); // MAGIC NUMBER
 					RingBuffer maybePreambleSignal = new RingBuffer(SYMBOL_LENGTH*PREAMBLE.length*8);
+					short[] maybePreambleSubset = new short[bitsInPreamble];
 
 					plot.setSkip(1);
 
@@ -374,7 +376,24 @@ public class MainActivity extends FragmentActivity {
 							maybePreambleSignal.addElement(maxWindow.max());
 							//							plot.putSample(maxWindow.max());
 
-							// Assuming signal looks great...
+
+							// Start looking at specific points for highs and lows.
+							int averageAmplitude = 0;
+							for (int j = 0; j < bitsInPreamble; ++j) {
+								short dataPoint = maybePreambleSignal.get(j*SYMBOL_LENGTH);
+								averageAmplitude += dataPoint;
+								maybePreambleSubset[j] = dataPoint;
+							}
+							averageAmplitude /= bitsInPreamble;
+							for (int j = 0; j < maybePreambleSubset.length; ++j) {
+								maybePreambleSubset[j] = (short) ((maybePreambleSubset[j] > averageAmplitude) ? 1 : 0);
+							}
+
+
+							if (matchesPreamble(maybePreambleSubset)) {
+								Log.i("Some Tag", "New Preamble Found! Threshold: " + Integer.toString(averageAmplitude));
+							}
+
 
 
 
@@ -646,6 +665,17 @@ public class MainActivity extends FragmentActivity {
 						e.printStackTrace();
 					}
 
+				}
+
+				private boolean matchesPreamble(short[] maybePreambleSubset) {
+					boolean shouldBeZero = false;
+					for (int i = 0; i < maybePreambleSubset.length; ++i) {
+						if (shouldBeZero == (maybePreambleSubset[i]==0))
+							shouldBeZero = !shouldBeZero;
+						else
+							return false;
+					}
+					return true;
 				}
 
 			});
