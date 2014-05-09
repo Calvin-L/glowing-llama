@@ -55,7 +55,7 @@ public class ThresholdingBitParser {
 			// then we are likely at the start of a bit.
 			// (TODO: 4 is a really arbitrary number)
 			if (samplesSinceLastHighSample > expectedBitLength * 4 / 5) {
-				if (n >= expectedBitLength / 2) {
+				if (n >= expectedBitLength / 3) {
 					// Hrm... it *kinda* looks like there should be a zero
 					// here since enough low samples have elapsed...
 					result = Bit.ZERO;
@@ -76,7 +76,7 @@ public class ThresholdingBitParser {
 		// many high samples you found).
 		if (n >= expectedBitLength) {
 			result = highCount > requiredHighCount ? Bit.ONE : Bit.ZERO;
-			if (result == Bit.ONE){
+			if (result == Bit.ONE) {
 				//				Log.i("x", "HC=" + highCount);
 				pastHighCounts.add(highCount);
 				if (pastHighCounts.size() > 10) {
@@ -106,6 +106,12 @@ public class ThresholdingBitParser {
 
 	public void setThreshold(int threshold) {
 		this.threshold = threshold;
+	}
+
+	public void clear() {
+		n = 0;
+		highCount = 0;
+		samplesSinceLastHighSample = Integer.MAX_VALUE;
 	}
 
 }

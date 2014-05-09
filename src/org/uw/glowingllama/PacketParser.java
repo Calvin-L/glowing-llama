@@ -50,6 +50,10 @@ public class PacketParser {
 				// convert some of the bytes to find the length of the packet
 				readLen = packetLength(header);
 				Log.i("x", "HEADER PARSED, BITS=" + bits + ", BYTES=" + Arrays.toString(header) + ", LEN=" + readLen);
+				if (readLen > Constants.MAX_PACKET_LENGTH_IN_BYTES) {
+					Log.w("x", "Capping packet length to " + Constants.MAX_PACKET_LENGTH_IN_BYTES);
+					readLen = Constants.MAX_PACKET_LENGTH_IN_BYTES;
+				}
 				if (readLen > 0) {
 					// if the packet is nonempty, transition to READING_PACKET
 					mode = Mode.READING_PACKET;
@@ -119,6 +123,12 @@ public class PacketParser {
 			}
 		}
 		return buf.array();
+	}
+
+	public void clear() {
+		mode = Mode.READING_HEADER;
+		readLen = 0;
+		bits.clear();
 	}
 
 }

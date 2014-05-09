@@ -37,7 +37,7 @@ public class DeModulator {
 		}
 
 		// TODO: some magic numbers
-		final ThresholdingBitParser bitParser = new ThresholdingBitParser(Constants.SYMBOL_LENGTH, 4000, 15);
+		final ThresholdingBitParser bitParser = new ThresholdingBitParser(Constants.SYMBOL_LENGTH, 4000, Constants.SYMBOL_LENGTH * 3 / 16);
 		final PacketParser packetParser = new PacketParser();
 
 		final AudioRecord record = new AudioRecord(MediaRecorder.AudioSource.MIC, Constants.SAMPLE_RATE, AudioFormat.CHANNEL_IN_MONO, Constants.ENCODING, Constants.AUDIORECORD_BUFFER_SIZE_IN_BYTES);
@@ -81,6 +81,8 @@ public class DeModulator {
 						Log.i("x", "Got packet: " + s);
 						callback.packetReceived(result, s);
 						readingPacket = false;
+						bitParser.clear();
+						packetParser.clear();
 					}
 
 				} else {
