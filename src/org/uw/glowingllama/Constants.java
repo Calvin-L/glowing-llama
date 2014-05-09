@@ -1,6 +1,7 @@
 package org.uw.glowingllama;
 
 import android.media.AudioFormat;
+import android.media.AudioRecord;
 
 public class Constants {
 
@@ -15,6 +16,13 @@ public class Constants {
 	final static double FFT_OVERLAP_RATIO = 0.2; // 0 = fft every sample, 1 = fft windows do not overlap
 	final static int frequency = 4410; //10000; //6342; //500; //3700; // Hz
 	final static int MAX_PACKET_LENGTH_IN_BYTES = 256;
+
+	/** Number of bytes for the AudioRecord instance's internal buffer */
+	final static int AUDIORECORD_BUFFER_SIZE_IN_BYTES = Math.max(
+			// times 5 arbitrarily, seems to prevent buffer overruns
+			AudioRecord.getMinBufferSize(Constants.SAMPLE_RATE, AudioFormat.CHANNEL_IN_MONO, Constants.ENCODING) * 5,
+			// times two because there are 2 bytes in a short
+			Constants.SAMPLE_RATE * 2);
 
 	final static String SHAKESPEARE = "Shall I compare thee to a summer's day?\n" +
 			"Thou art more lovely and more temperate:\n" +

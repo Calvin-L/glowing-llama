@@ -16,7 +16,7 @@ public class ThresholdingBitParser {
 	private int threshold;
 	private final int requiredHighCount;
 
-	private ArrayList<Integer> pastHighCounts = new ArrayList();
+	private ArrayList<Integer> pastHighCounts = new ArrayList<Integer>();
 
 	/** the number of samples since the start of the last bit */
 	private int n;
