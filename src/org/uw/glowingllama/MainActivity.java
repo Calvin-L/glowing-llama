@@ -1,6 +1,7 @@
 package org.uw.glowingllama;
 
 import java.nio.ByteBuffer;
+import java.util.ArrayList;
 import java.util.Random;
 
 import android.media.AudioFormat;
@@ -136,7 +137,7 @@ public class MainActivity extends FragmentActivity {
 	}
 
 	interface OnPacket {
-		void packetReceived(String message);
+		void packetReceived(byte[] bytes, String decoded);
 	}
 
 	private void startListening(final OnPacket callback) {
@@ -149,6 +150,7 @@ public class MainActivity extends FragmentActivity {
 		listenThread.start();
 	}
 
+	private final ArrayList<Byte> collectedBytes = new ArrayList<Byte>();
 	public void toggleListenLongMessage(View view) {
 		ToggleButton button = (ToggleButton) findViewById(R.id.longMessageListenToggle);
 		boolean listening = button.isChecked();
@@ -156,17 +158,40 @@ public class MainActivity extends FragmentActivity {
 		if (listening) {
 			startListening(new OnPacket() {
 				@Override
-				public void packetReceived(String message) {
+				public void packetReceived(byte[] bytes, String message) {
 					postMessage("Friend: " + message);
-					// do other stuff...
-					// TODO: store it for later
+					for (byte b : bytes) {
+						collectedBytes.add(b);
+					}
 				}
 			});
 		} else {
 			// TODO: do the comparison
+			byte[] expectedBytes = Constants.SHAKESPEARE.getBytes();
+			int numDifferentBits = bitDiff(expectedBytes, collectedBytes);
+			Log.i("x", "I did the comparison thing; diff = " + numDifferentBits + " / " + expectedBytes.length * 8);
+			collectedBytes.clear();
 		}
 	}
 
+	private int bitDiff(byte[] expectedBytes, ArrayList<Byte> collectedBytes) {
+		int diff = 0;
+		int len = Math.min(expectedBytes.length, collectedBytes.size());
+
+		diff += Math.abs(expectedBytes.length - collectedBytes.size()) * 8;
+
+		for (int i = 0; i < len; ++i) {
+			byte b1 = expectedBytes[i];
+			byte b2 = collectedBytes.get(i);
+
+			byte comparison = (byte) (b1 ^ b2);
+			for (int bitIndex = 0; bitIndex < 8; ++bitIndex) {
+				diff += (comparison >> bitIndex) & 1;
+			}
+		}
+
+		return diff;
+	}
 
 	public void toggleNormalListen(View view) {
 		ToggleButton button = (ToggleButton) findViewById(R.id.regularListenToggle);
@@ -175,7 +200,7 @@ public class MainActivity extends FragmentActivity {
 		if (listening) {
 			startListening(new OnPacket() {
 				@Override
-				public void packetReceived(String message) {
+				public void packetReceived(byte[] bytes, String message) {
 					postMessage("Friend: " + message);
 				}
 			});

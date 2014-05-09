@@ -19,7 +19,8 @@
             android:id="@+id/sendLongMessageButton"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="@string/send_long_message_button_text"/>
+            android:text="@string/send_long_message_button_text"
+            android:onClick="sendLongMessage" />
             
     
         <ToggleButton
@@ -29,10 +30,9 @@
             android:text="@string/regular_listen_button_text"
             android:onClick="toggleListenLongMessage" />
         
-        
     </LinearLayout>
     
-	<TextView 	android:id="@+id/messageHistory"
+	<TextView android:id="@+id/messageHistory"
    		android:layout_width="fill_parent"
    		android:layout_height="0dip"	
    		android:layout_weight="3" 
@@ -56,14 +56,15 @@
 	        android:id="@+id/sendInputTextButton"
 	        android:layout_width="wrap_content"
 	        android:layout_height="wrap_content"
-	        android:text="@string/send_input_text_button_text"/>
+	        android:text="@string/send_input_text_button_text"
+	        android:onClick="sendMessage" />
 	        
         <ToggleButton
             android:id="@+id/regularListenToggle"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="@string/regular_listen_button_text"
-            android:onClick="toggleLongListen" />
+            android:onClick="toggleNormalListen" />
         
         </LinearLayout>
         

@@ -79,7 +79,7 @@ public class DeModulator {
 					if (result != null) {
 						String s = new String(result);
 						Log.i("x", "Got packet: " + s);
-						callback.packetReceived(s);
+						callback.packetReceived(result, s);
 						readingPacket = false;
 					}
 
