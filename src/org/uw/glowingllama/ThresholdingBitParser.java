@@ -1,8 +1,8 @@
 package org.uw.glowingllama;
 
-import org.uw.glowingllama.BitFetcher.Bit;
+import java.util.ArrayList;
 
-import android.util.Log;
+import org.uw.glowingllama.BitFetcher.Bit;
 
 /**
  * A class for extracting bits from a raw signal. Give it the absolute value
@@ -15,6 +15,8 @@ public class ThresholdingBitParser {
 	private final int expectedBitLength;
 	private int threshold;
 	private final int requiredHighCount;
+
+	private ArrayList<Integer> pastHighCounts = new ArrayList();
 
 	/** the number of samples since the start of the last bit */
 	private int n;
@@ -75,7 +77,12 @@ public class ThresholdingBitParser {
 		if (n >= expectedBitLength) {
 			result = highCount > requiredHighCount ? Bit.ONE : Bit.ZERO;
 			if (result == Bit.ONE){
-				Log.i("x", "HC=" + highCount);
+				//				Log.i("x", "HC=" + highCount);
+				pastHighCounts.add(highCount);
+				if (pastHighCounts.size() > 10) {
+					//					Log.i("x", "HC's = " + pastHighCounts);
+					pastHighCounts.clear();
+				}
 			}
 			n = 0;
 			highCount = 0;
@@ -83,12 +90,12 @@ public class ThresholdingBitParser {
 
 		++n;
 
-		if (result != Bit.NOTHING)
-			builder.append(result == Bit.ZERO ? "0" : "1");
-		if (builder.length() >= 64) {
-			Log.i(getClass().toString(), builder.toString());
-			builder = new StringBuilder();
-		}
+		//		if (result != Bit.NOTHING)
+		//			builder.append(result == Bit.ZERO ? "0" : "1");
+		//		if (builder.length() >= 64) {
+		//			Log.i(getClass().toString(), builder.toString());
+		//			builder = new StringBuilder();
+		//		}
 
 		return result;
 	}

@@ -8,7 +8,30 @@
     android:paddingRight="@dimen/activity_horizontal_margin"
     android:paddingTop="@dimen/activity_vertical_margin"
     tools:context="org.uw.glowingllama.MainActivity$PlaceholderFragment" >
-
+    
+    <LinearLayout 
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        tools:context="org.uw.glowingllama.MainActivity$PlaceholderFragment" >
+        
+        <Button 
+            android:id="@+id/sendLongMessageButton"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/send_long_message_button_text"/>
+            
+    
+        <ToggleButton
+            android:id="@+id/longMessageListenToggle"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/regular_listen_button_text"
+            android:onClick="toggleListenLongMessage" />
+        
+        
+    </LinearLayout>
+    
 	<TextView 	android:id="@+id/messageHistory"
    		android:layout_width="fill_parent"
    		android:layout_height="0dip"	
@@ -22,26 +45,37 @@
         android:layout_height="wrap_content"
         android:hint="@string/edit_message" />
     
-    <Button 
-        android:id="@+id/button"
+    <LinearLayout 
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="@string/button_text"/>
+	    android:orientation="horizontal"
+	    tools:context="org.uw.glowingllama.MainActivity$PlaceholderFragment" >
+        
+        
+	    <Button 
+	        android:id="@+id/sendInputTextButton"
+	        android:layout_width="wrap_content"
+	        android:layout_height="wrap_content"
+	        android:text="@string/send_input_text_button_text"/>
+	        
+        <ToggleButton
+            android:id="@+id/regularListenToggle"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/regular_listen_button_text"
+            android:onClick="toggleLongListen" />
+        
+        </LinearLayout>
+        
 
-    <SeekBar
+    
+<!--     <SeekBar
         android:id="@+id/seekBar1"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:max="20000" />
+        android:max="20000" /> -->
 
-    <ToggleButton
-        android:id="@+id/toggleButton1"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="@string/listen_button_text"
-        android:onClick="toggleListen" />
-    
-  <org.uw.glowingllama.SimplePlot
+<!--   <org.uw.glowingllama.SimplePlot
         android:id="@+id/simplePlot"
         android:layout_width="wrap_content"
         android:layout_height="0dp"
@@ -57,6 +91,6 @@
         android:id="@+id/deltaPlot"
         android:layout_width="wrap_content"
         android:layout_height="0dp"
-        android:layout_weight="1" />
+        android:layout_weight="1" /> -->
     
 </LinearLayout>

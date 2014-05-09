@@ -28,67 +28,19 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.Button;
 import android.widget.EditText;
-import android.widget.SeekBar;
 import android.widget.TextView;
 import android.widget.ToggleButton;
-import edu.emory.mathcs.jtransforms.fft.DoubleFFT_1D;
 
 public class MainActivity extends FragmentActivity {
 
-	static final String EXTRA_MESSAGE = "org.uw.glowingllama.MESSAGE";
-	private static final int ENCODING = AudioFormat.ENCODING_PCM_16BIT;
-	private static final int SAMPLE_RATE = 44100;
-
-	final int SYMBOL_LENGTH = 80; //SAMPLE_RATE/600;
-	final double PEAK_THRESHOLD = 100d;
-
-	final int FREQUENCY_SPREAD = 1;
-	final int PERIODS_PER_FFT_WINDOW = 2;
-
-	final byte[] PREAMBLE = new byte[] { (byte) 0xAA, (byte) 0xAA, (byte) 0xAA, (byte) 0xAA };
-	final double FFT_OVERLAP_RATIO = 0.2; // 0 = fft every sample, 1 = fft windows do not overlap
-
-	private int frequency = 4410; //10000; //6342; //500; //3700; // Hz
 	private Thread listeningThread = null;
-
-	private final int MAX_PACKET_LENGTH_IN_BYTES = 256;
-
-	private final String SHAKESPEARE = "Shall I compare thee to a summer's day?\n" +
-			"Thou art more lovely and more temperate:\n" +
-			"Rough winds do shake the darling buds of May,\n" +
-			"And summer's lease hath all too short a date:\n" +
-			"Sometimes too hot the eye of heaven shines,\n" +
-			"And too often is his gold complexion dimm'd:\n" +
-			"And every fair from fair sometimes declines,\n" +
-			"By chance or natures changing course untrimm'd;\n" +
-			"By thy eternal summer shall not fade,\n" +
-			"Nor lose possession of that fair thou owest;\n" +
-			"Nor shall Death brag thou wander'st in his shade,\n" +
-			"When in eternal lines to time thou growest:\n" +
-			"So long as men can breathe or eyes can see,\n" +
-			"So long lives this and this gives life to thee.\n" +
-			"\n" +
-			"My mistress' eyes are nothing like the sun;\n" +
-			"Coral is far more red, than her lips red:\n" +
-			"If snow be white, why then her breasts are dun;\n" +
-			"If hairs be wires, black wires grow on her head.\n" +
-			"I have seen roses damasked, red and white,\n" +
-			"But no such roses see I in her cheeks;\n" +
-			"And in some perfumes is there more delight\n" +
-			"Than in the breath that from my mistress reeks.\n" +
-			"I love to hear her speak, yet well I know\n" +
-			"That music hath a far more pleasing sound:\n" +
-			"I grant I never saw a goddess go,\n" +
-			"My mistress, when she walks, treads on the ground:\n" +
-			"And yet by heaven, I think my love as rare,\n" +
-			"As any she belied with false compare.";
 
 	/** Number of bytes for the AudioRecord instance's internal buffer */
 	private final int AUDIORECORD_BUFFER_SIZE_IN_BYTES = Math.max(
 			// times 5 arbitrarily, seems to prevent buffer overruns
-			AudioRecord.getMinBufferSize(SAMPLE_RATE, AudioFormat.CHANNEL_IN_MONO, ENCODING) * 5,
+			AudioRecord.getMinBufferSize(Constants.SAMPLE_RATE, AudioFormat.CHANNEL_IN_MONO, Constants.ENCODING) * 5,
 			// times two because there are 2 bytes in a short
-			SAMPLE_RATE * 2);
+			Constants.SAMPLE_RATE * 2);
 
 
 	Handler handler = new Handler() {
@@ -121,29 +73,8 @@ public class MainActivity extends FragmentActivity {
 		TextView msgHistTextView = (TextView)findViewById(R.id.messageHistory);
 		msgHistTextView.setMovementMethod(new ScrollingMovementMethod());
 
-		SeekBar seekBar = (SeekBar) findViewById(R.id.seekBar1);
-		seekBar.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
 
-			@Override
-			public void onProgressChanged(SeekBar seekBar, int progress,
-					boolean fromUser) {
-				//				updateFreq(progress);  // Temporarily commented out
-			}
-
-			@Override
-			public void onStartTrackingTouch(SeekBar seekBar) {
-
-			}
-
-			@Override
-			public void onStopTrackingTouch(SeekBar seekBar) {
-
-			}
-
-		});
-
-
-		Button button = (Button) findViewById(R.id.button);
+		Button button = (Button) findViewById(R.id.sendInputTextButton);
 		button.setOnTouchListener(new View.OnTouchListener() {
 
 			Thread sendThread = null;
@@ -166,15 +97,15 @@ public class MainActivity extends FragmentActivity {
 						@Override
 						public void run() {
 							EditText editText = (EditText) findViewById(R.id.edit_message);
-							String message = SHAKESPEARE; //editText.getText().toString();
+							String message = Constants.SHAKESPEARE; //editText.getText().toString();
 							//							pressButton(null);
 							//							if (1 == 0) {
 							final short[] buffer = modulate(send(message));
-							final int bufferSize = AudioTrack.getMinBufferSize(SAMPLE_RATE, AudioFormat.CHANNEL_OUT_MONO, ENCODING);
+							final int bufferSize = AudioTrack.getMinBufferSize(Constants.SAMPLE_RATE, AudioFormat.CHANNEL_OUT_MONO, Constants.ENCODING);
 
 							final AudioTrack audioTrack = new AudioTrack(AudioManager.STREAM_MUSIC,
-									SAMPLE_RATE, AudioFormat.CHANNEL_OUT_MONO,
-									ENCODING, bufferSize, AudioTrack.MODE_STREAM);
+									Constants.SAMPLE_RATE, AudioFormat.CHANNEL_OUT_MONO,
+									Constants.ENCODING, bufferSize, AudioTrack.MODE_STREAM);
 							audioTrack.play();
 							while (!Thread.interrupted()) {
 								audioTrack.write(buffer, 0, buffer.length);
@@ -219,20 +150,16 @@ public class MainActivity extends FragmentActivity {
 		return super.onOptionsItemSelected(item);
 	}
 
+
+
 	public void toggleListen(View view) {
-		ToggleButton button = (ToggleButton) findViewById(R.id.toggleButton1);
+		ToggleButton button = (ToggleButton) findViewById(R.id.regularListenToggle);
 		boolean listening = button.isChecked();
 
 		if (listening) {
 
-			final SimplePlot plot = (SimplePlot) findViewById(R.id.simplePlot);
-			final SimplePlot envelopePlot = (SimplePlot) findViewById(R.id.envelopePlot);
-			final SimplePlot deltaPlot = (SimplePlot) findViewById(R.id.deltaPlot);
-
 			//            assert plot != null;
 			listeningThread = new Thread(new Runnable() {
-
-
 				public int bestOddNumber(int number) {
 					if (number%2 == 0)
 						return number + 1;
@@ -308,11 +235,9 @@ public class MainActivity extends FragmentActivity {
 					//						Log.i("result", Arrays.toString(x));
 					//					}
 
-					final int fftWindowSize = PERIODS_PER_FFT_WINDOW * SAMPLE_RATE / frequency;
-					final int samplesBetweenFftRecomputes = (int)Math.ceil(fftWindowSize * FFT_OVERLAP_RATIO);
-					final int fftSamplesPerBit = (int)((double)SYMBOL_LENGTH / samplesBetweenFftRecomputes);
-					short lastBitSeen = 0;
-					final BitFetcher bitFetcher = new BitFetcher(fftSamplesPerBit, PEAK_THRESHOLD);
+					final int fftWindowSize = Constants.PERIODS_PER_FFT_WINDOW * Constants.SAMPLE_RATE / Constants.frequency;
+					final int samplesBetweenFftRecomputes = (int)Math.ceil(fftWindowSize * Constants.FFT_OVERLAP_RATIO);
+					final int fftSamplesPerBit = (int)((double)Constants.SYMBOL_LENGTH / samplesBetweenFftRecomputes);
 
 					// Compute the Gaussian kernel.
 					int envelopeKernelSize = bestOddNumber(fftSamplesPerBit);
@@ -336,21 +261,8 @@ public class MainActivity extends FragmentActivity {
 							deltaKernel[i] = 1;
 					}
 
-					// Initialize objects for computing and storing FFT.
-					RingBuffer fftWindow = new RingBuffer(fftWindowSize);
-					int timeSinceLastFFT = 0;
-					double x[] = new double[fftWindowSize];
-					short[] fftOutput = new short[halfRoundedUp(fftWindowSize)];
-					DoubleFFT_1D jfft = new DoubleFFT_1D(fftWindowSize);
-
 					// Containers to track results and relevant indices.
 					short[] newData = new short[AUDIORECORD_BUFFER_SIZE_IN_BYTES / 2];
-					int firstRingbufferSize = SYMBOL_LENGTH * 10;   // MAGIC NUMBER
-					RingBuffer bandpassData = new RingBuffer(firstRingbufferSize);
-					RingBuffer envelopedData = new RingBuffer(bandpassData.size());
-					RingBuffer deltaData = new RingBuffer(bandpassData.size());
-					int envelopeStartIndex = bandpassData.size() - envelopeKernelSize;
-					int deltaStartIndex = envelopedData.size() - deltaKernelSize;
 
 
 					//					int exactPeriod = SAMPLE_RATE / frequency;
@@ -377,22 +289,21 @@ public class MainActivity extends FragmentActivity {
 					}
 
 					//					final ThresholdingBitParser bitParser = new ThresholdingBitParser(SYMBOL_LENGTH, 4000, SYMBOL_LENGTH/4);
-					final ThresholdingBitParser bitParser = new ThresholdingBitParser(SYMBOL_LENGTH, 4000, 15);
+					final ThresholdingBitParser bitParser = new ThresholdingBitParser(Constants.SYMBOL_LENGTH, 4000, 15);
 					final PacketParser packetParser = new PacketParser();
 
-					final AudioRecord record = new AudioRecord(MediaRecorder.AudioSource.MIC, SAMPLE_RATE, AudioFormat.CHANNEL_IN_MONO, ENCODING, AUDIORECORD_BUFFER_SIZE_IN_BYTES);
+					final AudioRecord record = new AudioRecord(MediaRecorder.AudioSource.MIC, Constants.SAMPLE_RATE, AudioFormat.CHANNEL_IN_MONO, Constants.ENCODING, AUDIORECORD_BUFFER_SIZE_IN_BYTES);
 					record.startRecording();
 
-					final int bitsInPreamble = PREAMBLE.length*8;
+					final int bitsInPreamble = Constants.PREAMBLE.length*8;
 
 
-					final int samplesPerWavelength = SAMPLE_RATE / frequency;
-					PreambleFinder preambleFinder = new PreambleFinder(samplesPerWavelength * 2, bitsInPreamble, SYMBOL_LENGTH);
+					final int samplesPerWavelength = Constants.SAMPLE_RATE / Constants.frequency;
+					PreambleFinder preambleFinder = new PreambleFinder(samplesPerWavelength * 2, bitsInPreamble, Constants.SYMBOL_LENGTH);
 					//					MinMaxFilter maxWindow = new MinMaxFilter(); // MAGIC NUMBER
 					//					RingBuffer maybePreambleSignal = new RingBuffer(SYMBOL_LENGTH*PREAMBLE.length*8);
 					//					short[] maybePreambleSubset = new short[bitsInPreamble];
 
-					plot.setSkip(1);
 
 					boolean readingPacket = false;
 					int skip = 0;
@@ -450,282 +361,14 @@ public class MainActivity extends FragmentActivity {
 									bitParser.setThreshold(preamble.threshold);
 									readingPacket = true;
 
-									// We tend to detect the preamble early. This adjustment factor helps.
-									//									skip = SYMBOL_LENGTH/3;
 								}
 
-							}
-
-							// Take 4.
-							//							maxWindow.put((short)Math.abs(sample));
-							//							maybePreambleSignal.addElement(maxWindow.max());
-							//							//							plot.putSample(maxWindow.max());
-							//
-							//
-							//							// Start looking at specific points for highs and lows.
-							//							int averageAmplitude = 0;
-							//							for (int j = 0; j < bitsInPreamble; ++j) {
-							//								short dataPoint = maybePreambleSignal.get(j*SYMBOL_LENGTH);
-							//								averageAmplitude += dataPoint;
-							//								maybePreambleSubset[j] = dataPoint;
-							//							}
-							//							averageAmplitude /= bitsInPreamble;
-							//							for (int j = 0; j < maybePreambleSubset.length; ++j) {
-							//								maybePreambleSubset[j] = (short) ((maybePreambleSubset[j] > averageAmplitude) ? 1 : 0);
-							//							}
-							//
-							//
-							//							if (matchesPreamble(maybePreambleSubset)) {
-							//								Log.i("Some Tag", "New Preamble Found! Threshold: " + Integer.toString(averageAmplitude));
-							//							}
-
-
-
-
-
-							//							try {
-							//								rawWriter.write(Integer.toString(Math.abs(sample)));
-							//								rawWriter.write('\n');
-							//								writer.write(Short.toString(preambleFinder.filter.max()));
-							//								writer.write('\n');
-							//							} catch (IOException e) {
-							//								Log.w("x", "write failed");
-							//								e.printStackTrace();
-							//								break;
-							//							}
-
-
-
-
-							//							// give the sample to the bit parser
-							//							Bit bit = bitParser.putSample((short)Math.abs(sample));
-							//							byte[] result = null;
-							//
-							//							// if we found a bit, send it to the packet parser
-							//							switch (bit) {
-							//							case ZERO:
-							//								result = packetParser.reportBit(0);
-							//								break;
-							//							case ONE:
-							//								result = packetParser.reportBit(1);
-							//								break;
-							//							case NOTHING:
-							//								break; // eh...
-							//							}
-							//
-							//							// if we found a packet, hooray!
-							//							if (result != null) {
-							//								String s = new String(result);
-							//								Log.i("x", "Got packet: '" + s + "'");
-							//
-							//								Message msg = handler.obtainMessage();
-							//								Bundle bundle = new Bundle();
-							//								bundle.putString("receivedMessage", s);
-							//								msg.setData(bundle);
-							//								handler.sendMessage(msg);
-							//							}
-
-
-							// Visualize incoming data
-							//							plot.setSkip(1);
-							//							plot.putMultipleSamples(newData);
-
-
-
-							if (0 == 1) {
-
-								fftWindow.addElement(sample);
-								++timeSinceLastFFT;
-								if (timeSinceLastFFT >= samplesBetweenFftRecomputes) {
-
-									timeSinceLastFFT = 0;
-
-									// Fill our window with the latest audio sample data.
-									for (int j = 0; j < fftWindowSize; ++j) {
-										x[j] = (double)fftWindow.get(j) / Short.MAX_VALUE;
-									}
-
-									// Calculate the FFT.
-									//								Log.i("in", Arrays.toString(x));
-									jfft.realForward(x);
-									//								Log.i("out", Arrays.toString(x));
-
-									//								Log.i("FFT raw output: ", Arrays.toString(x));
-
-
-									//								Log.i("x", "converting fft output");
-
-									// Get the real-valued output from the FFT
-									for (int j = 0; j < fftWindowSize; j += 2) {
-										fftOutput[j/2] = (short)Math.abs(x[j] * 1000);
-									}
-
-									//								// Find the "dominant" bucket -- that is, the bucket in the FFT results with the
-									//								// highest value.
-									//								int dominantBucket = 0;
-									//								int dominantVal = fftOutput[0];
-									//								for (int j = 1; j < fftOutput.length; ++j) {
-									//									if (fftOutput[j] > dominantVal) {
-									//										dominantVal = fftOutput[j];
-									//										dominantBucket = j;
-									//									}
-									//								}
-									//
-									//								// Normalize the dominant value
-									//								double power = (double)dominantVal / sum(fftOutput);
-									//
-									// TODO: +2 makes everything work, but why?
-									int targetIndex = (int)((double)frequency / SAMPLE_RATE * fftOutput.length) + 2;
-									//
-									//								// Make sure the dominant frequency is close to what we expect
-									//								int dist = Math.abs(dominantBucket - targetIndex);
-									//								if (dist > 0) {
-									//									power = 0;
-									//								}
-
-									final double rawPower = fftOutput[targetIndex] +
-											0.5 * fftOutput[targetIndex-1] +
-											0.5 * fftOutput[targetIndex+1];
-
-									double amplitude = 0;
-									for (int j = 0; j < fftWindowSize; ++j) {
-										amplitude += (double)Math.abs(fftWindow.get(j)) / Short.MAX_VALUE;
-									}
-									amplitude /= fftWindowSize;
-
-									final double power = rawPower / Math.max(sum(fftOutput), 1) * amplitude;
-
-									// freqStrength holds a noisy (pretty accurate) measure of how much the currently
-									// playing sound matches the frequency we are listening for. Zero means "no match"
-									// and positive values indicate some level of confidence.
-									short freqStrength = (short)(power * Short.MAX_VALUE);
-									bandpassData.addElement(freqStrength);
-									plot.setSkip(1);
-									plot.putSample(freqStrength);
-									//								plot.putSample((short) targetIndex);
-									//								plot.putSample((short) dominantBucket);
-
-									// Calculate the enveloped data point.
-									double newEnvelopedPoint = 0;
-									for (int j = 0; j < envelopeKernelSize; ++j) {
-										newEnvelopedPoint += gaussianKernel[j] * bandpassData.get(envelopeStartIndex+j);
-									}
-									envelopedData.addElement((short)newEnvelopedPoint);
-									//								envelopePlot.setSkip(1);
-									//								envelopePlot.putSample((short)newEnvelopedPoint);
-
-									// Calculate the delta point.
-									double newDeltaPoint = 0;
-									for (int j = 0; j < deltaKernelSize; ++j) {
-										newDeltaPoint += deltaKernel[j] * envelopedData.get(deltaStartIndex+j);
-									}
-									newDeltaPoint = Math.min(Math.max(Short.MIN_VALUE, newDeltaPoint), Short.MAX_VALUE);
-									deltaData.addElement((short)newDeltaPoint);
-									deltaPlot.setSkip(1);
-									deltaPlot.putSample((short)newDeltaPoint);
-
-									// Send it to the bits guy
-									BitFetcher.Bit latestBit = bitFetcher.interpretNewSample(newDeltaPoint);
-									byte[] packet = null;
-									switch(latestBit) {
-									case ONE:
-										lastBitSeen = (short)1;
-										packet = packetParser.reportBit(1);
-										break;
-									case ZERO:
-										lastBitSeen = (short)-1;
-										packet = packetParser.reportBit(0);
-										break;
-									case NOTHING:
-										break; // keep lastBitSeen the same
-									}
-									envelopePlot.setSkip(0);
-									envelopePlot.putSample(lastBitSeen);
-
-									if (packet != null) {
-										Log.i("x", "FOUND A PACKET!");
-									}
-
-									/* //old code
-
-//								Log.i("x", "max fft val=" + max);
-								envelopePlot.setSkip(1);
-								envelopePlot.reset();
-								envelopePlot.putMultipleSamples(fftOutput);
-
-								spectoPlot.addSample(fftOutput);
-
-								int targetIndex = (int)((double)frequency / SAMPLE_RATE * fftOutput.length) + 1;
-								int minIndex = Math.max(0, targetIndex - FREQUENCY_SPREAD);
-								int maxIndex = Math.min(targetIndex + FREQUENCY_SPREAD + 1, fftOutput.length);
-
-								envelopePlot.setMarks(Arrays.asList(
-										envelopePlot.getWidth() + (-fftOutput.length + minIndex) / envelopePlot.getSkip(),
-										envelopePlot.getWidth() + (-fftOutput.length + maxIndex) / envelopePlot.getSkip()));
-
-								short bestVal = 0;
-								for (int j = minIndex; j < maxIndex; ++j) {
-									bestVal = (short)Math.max(bestVal, Math.min(fftOutput[j], 100));
-								}
-								deltaPlot.setSkip(0);
-								deltaPlot.putSample(bestVal);
-//
-//								plot.setSkip(0);
-//								plot.putSample(bestVal);
-////								plot.reset();
-////								plot.putMultipleSamples(fftWindow);
-////
-//
-//
-								bandpassData.addElement(bestVal);
-//
-								// Calculate the enveloped data point.
-								double newEnvelopedPoint = 0;
-								for (int j = 0; j < envelopeKernelSize; ++j) {
-									newEnvelopedPoint += gaussianKernel[j] * bandpassData.get(envelopeStartIndex+j);
-								}
-								envelopedData.addElement((short)newEnvelopedPoint);
-								plot.setSkip(0);
-								plot.putSample((short)newEnvelopedPoint);
-
-
-
-//								// Calculate the delta point.
-//								double newDeltaPoint = 0;
-//								for (int j = 0; j < deltaKernelSize; ++j) {
-//									newDeltaPoint += deltaKernel[j] * envelopedData.get(deltaStartIndex+j);
-//								}
-//								deltaData.addElement((short)newDeltaPoint);
-////								deltaPlot.setSkip(0);
-////								deltaPlot.putSample((short)newDeltaPoint);
-//
-//								BitFetcher.Bit latestBit = bitFetcher.interpretNewSample(newDeltaPoint);
-//								switch(latestBit) {
-//								case ONE:
-//									lastBitSeen = (short)1;
-//									break;
-//								case ZERO:
-//									lastBitSeen = (short)-1;
-//									break;
-//								case NOTHING:
-//									break; // keep lastBitSeen the same
-//								}
-//								deltaPlot.setSkip(0);
-//								deltaPlot.putSample(lastBitSeen);
-								}
-									 */
-								}
 							}
 
 
 
 						}
 
-						//						try {
-						//							Thread.sleep(1);
-						//						} catch (InterruptedException e) {
-						//							break;
-						//						}
 					}
 
 					Log.i("x", "Stopping listening...");
@@ -742,6 +385,7 @@ public class MainActivity extends FragmentActivity {
 
 				}
 
+
 			});
 			listeningThread.start();
 		} else {
@@ -750,11 +394,6 @@ public class MainActivity extends FragmentActivity {
 				listeningThread = null;
 			}
 		}
-	}
-
-	public void updateFreq(int progress) {
-		Log.i("x", "seekbar: " + progress);
-		frequency = Math.max(progress, 1);
 	}
 
 
@@ -782,8 +421,8 @@ public class MainActivity extends FragmentActivity {
 			@Override
 			public void run() {
 				final AudioTrack audioTrack = new AudioTrack(AudioManager.STREAM_MUSIC,
-						SAMPLE_RATE, AudioFormat.CHANNEL_OUT_MONO,
-						ENCODING, AudioTrack.getMinBufferSize(SAMPLE_RATE, AudioFormat.CHANNEL_OUT_MONO, ENCODING), AudioTrack.MODE_STREAM);
+						Constants.SAMPLE_RATE, AudioFormat.CHANNEL_OUT_MONO,
+						Constants.ENCODING, AudioTrack.getMinBufferSize(Constants.SAMPLE_RATE, AudioFormat.CHANNEL_OUT_MONO, Constants.ENCODING), AudioTrack.MODE_STREAM);
 				audioTrack.play();
 
 				final int npackets = 3;
@@ -805,17 +444,17 @@ public class MainActivity extends FragmentActivity {
 
 	public byte[] send(String message) {
 
-		int headerLength = PREAMBLE.length + 2; // Preamble + payload length
+		int headerLength = Constants.PREAMBLE.length + 2; // Preamble + payload length
 
 		byte[] allBytes = message.getBytes();
-		int numPackets = (allBytes.length + MAX_PACKET_LENGTH_IN_BYTES - 1) / MAX_PACKET_LENGTH_IN_BYTES;
+		int numPackets = (allBytes.length + Constants.MAX_PACKET_LENGTH_IN_BYTES - 1) / Constants.MAX_PACKET_LENGTH_IN_BYTES;
 
 		int totalBytes = allBytes.length + (numPackets * headerLength);
 		ByteBuffer packets = ByteBuffer.allocate(totalBytes);
 
-		for (int i = 0; i < allBytes.length; i += MAX_PACKET_LENGTH_IN_BYTES) {
-			int payloadLength = Math.min(MAX_PACKET_LENGTH_IN_BYTES, allBytes.length - i);
-			packets.put(PREAMBLE);
+		for (int i = 0; i < allBytes.length; i += Constants.MAX_PACKET_LENGTH_IN_BYTES) {
+			int payloadLength = Math.min(Constants.MAX_PACKET_LENGTH_IN_BYTES, allBytes.length - i);
+			packets.put(Constants.PREAMBLE);
 			packets.putShort((short)payloadLength);
 			packets.put(allBytes, i, payloadLength);
 
@@ -836,7 +475,7 @@ public class MainActivity extends FragmentActivity {
 	public short[] modulate(byte[] bits) {
 		double amplitude = 1;
 
-		int numSamples = bits.length * 8 * SYMBOL_LENGTH;
+		int numSamples = bits.length * 8 * Constants.SYMBOL_LENGTH;
 
 		short[] buffer = new short[numSamples];
 
@@ -847,8 +486,8 @@ public class MainActivity extends FragmentActivity {
 			for (int i = 7; i >= 0; --i) {
 				int bit = (b >> i) & 1;
 
-				for (int j = 0; j < SYMBOL_LENGTH; ++j) {
-					double sample = amplitude * Math.sin(2 * Math.PI * idx / ((double)SAMPLE_RATE/frequency));
+				for (int j = 0; j < Constants.SYMBOL_LENGTH; ++j) {
+					double sample = amplitude * Math.sin(2 * Math.PI * idx / ((double)Constants.SAMPLE_RATE/Constants.frequency));
 					sample *= bit;
 					short shortSample = (short)(sample * Short.MAX_VALUE);
 					buffer[idx++] = shortSample;
