@@ -51,7 +51,37 @@ public class MainActivity extends FragmentActivity {
 	private int frequency = 4410; //10000; //6342; //500; //3700; // Hz
 	private Thread listeningThread = null;
 
+	private final int MAX_PACKET_LENGTH_IN_BYTES = 256;
 
+	private final String SHAKESPEARE = "Shall I compare thee to a summer's day?\n" +
+			"Thou art more lovely and more temperate:\n" +
+			"Rough winds do shake the darling buds of May,\n" +
+			"And summer's lease hath all too short a date:\n" +
+			"Sometimes too hot the eye of heaven shines,\n" +
+			"And too often is his gold complexion dimm'd:\n" +
+			"And every fair from fair sometimes declines,\n" +
+			"By chance or natures changing course untrimm'd;\n" +
+			"By thy eternal summer shall not fade,\n" +
+			"Nor lose possession of that fair thou owest;\n" +
+			"Nor shall Death brag thou wander'st in his shade,\n" +
+			"When in eternal lines to time thou growest:\n" +
+			"So long as men can breathe or eyes can see,\n" +
+			"So long lives this and this gives life to thee.\n" +
+			"\n" +
+			"My mistress' eyes are nothing like the sun;\n" +
+			"Coral is far more red, than her lips red:\n" +
+			"If snow be white, why then her breasts are dun;\n" +
+			"If hairs be wires, black wires grow on her head.\n" +
+			"I have seen roses damasked, red and white,\n" +
+			"But no such roses see I in her cheeks;\n" +
+			"And in some perfumes is there more delight\n" +
+			"Than in the breath that from my mistress reeks.\n" +
+			"I love to hear her speak, yet well I know\n" +
+			"That music hath a far more pleasing sound:\n" +
+			"I grant I never saw a goddess go,\n" +
+			"My mistress, when she walks, treads on the ground:\n" +
+			"And yet by heaven, I think my love as rare,\n" +
+			"As any she belied with false compare.";
 
 	/** Number of bytes for the AudioRecord instance's internal buffer */
 	private final int AUDIORECORD_BUFFER_SIZE_IN_BYTES = Math.max(
@@ -136,7 +166,7 @@ public class MainActivity extends FragmentActivity {
 						@Override
 						public void run() {
 							EditText editText = (EditText) findViewById(R.id.edit_message);
-							String message = editText.getText().toString();
+							String message = SHAKESPEARE; //editText.getText().toString();
 							//							pressButton(null);
 							//							if (1 == 0) {
 							final short[] buffer = modulate(send(message));
@@ -728,7 +758,10 @@ public class MainActivity extends FragmentActivity {
 	}
 
 
-	private static final char[] alphabet = new char[] { 'a', 'b', 'c', 'd', 'e', 'f', 'g', ' ' };
+	private static final char[] alphabet = new char[] {
+		'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z',
+		'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z',
+		' ', '.', '?', ':', ';', '"', '\'', '*', '0', '1', '2', '3', '4', '5', '6', '7', '8', '9' };
 	public String genStr(int nchars, int seed) {
 		final char[] chars = new char[nchars];
 		Random r = new Random(seed);
@@ -772,26 +805,32 @@ public class MainActivity extends FragmentActivity {
 
 	public byte[] send(String message) {
 
-		int headerLength = PREAMBLE.length + 1 + 1 + 4; // Preamble + src + dst + payload length
-		byte srcID = 0;
-		byte dstID = 1;
+		int headerLength = PREAMBLE.length + 2; // Preamble + payload length
 
-		byte[] payload = message.getBytes();
-		int packetLength = headerLength + payload.length;
+		byte[] allBytes = message.getBytes();
+		int numPackets = (allBytes.length + MAX_PACKET_LENGTH_IN_BYTES - 1) / MAX_PACKET_LENGTH_IN_BYTES;
 
-		ByteBuffer packet = ByteBuffer.allocate(packetLength);
+		int totalBytes = allBytes.length + (numPackets * headerLength);
+		ByteBuffer packets = ByteBuffer.allocate(totalBytes);
 
-		packet.put(PREAMBLE);
-		packet.put(srcID);
-		packet.put(dstID);
-		packet.putInt(payload.length);
-		packet.put(payload);
+		for (int i = 0; i < allBytes.length; i += MAX_PACKET_LENGTH_IN_BYTES) {
+			int payloadLength = Math.min(MAX_PACKET_LENGTH_IN_BYTES, allBytes.length - i);
+			packets.put(PREAMBLE);
+			packets.putShort((short)payloadLength);
+			packets.put(allBytes, i, payloadLength);
 
-		//    	for (int i = 0; i < packetLength; ++i) {
-		//    		packet.put((byte)0xFF);
-		//    	}
+		}
 
-		return packet.array();
+		return packets.array();
+		//		int packetLength = headerLength + payload.length;
+		//
+		//		ByteBuffer packet = ByteBuffer.allocate(packetLength);
+		//
+		//		packet.put(PREAMBLE);
+		//		packet.putShort((short) payload.length);
+		//		packet.put(payload);
+		//
+		//		return packet.array();
 	}
 
 	public short[] modulate(byte[] bits) {

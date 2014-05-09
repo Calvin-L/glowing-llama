@@ -44,7 +44,7 @@ public class PacketParser {
 			// add this to the list of bits
 			bits.add(i);
 			// if we have read enough bits to equal the length of the header...
-			if (bits.size() == 8 + 8 + 32) { // src + dst + len
+			if (bits.size() == 16) { // short length
 				// convert the bits to bytes
 				byte[] header = asBytes(bits);
 				// convert some of the bytes to find the length of the packet
@@ -84,10 +84,8 @@ public class PacketParser {
 	 * @return the length of the packet
 	 */
 	private int packetLength(byte[] header) {
-		// the last 4 bytes of the header are the length
-		int i = header.length - 4;
 		// bitwise magic to assemble an int from 4 bytes
-		return (header[i] << 24) | (header[i+1] << 16) | (header[i+2] << 8) | (header[i+3]);
+		return ((header[0] & 0xFF) << 8) | ((header[1]) & 0xFF);
 	}
 
 	/**
