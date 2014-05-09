@@ -8,8 +8,6 @@ import java.io.Writer;
 import java.nio.ByteBuffer;
 import java.util.Random;
 
-import org.uw.glowingllama.BitFetcher.Bit;
-
 import android.media.AudioFormat;
 import android.media.AudioManager;
 import android.media.AudioRecord;
@@ -137,22 +135,22 @@ public class MainActivity extends FragmentActivity {
 
 						@Override
 						public void run() {
-							//							EditText editText = (EditText) findViewById(R.id.edit_message);
-							//							String message = editText.getText().toString();
-							pressButton(null);
-							if (1 == 0) {
-								final short[] buffer = modulate(send(message));
-								final int bufferSize = AudioTrack.getMinBufferSize(SAMPLE_RATE, AudioFormat.CHANNEL_OUT_MONO, ENCODING);
+							EditText editText = (EditText) findViewById(R.id.edit_message);
+							String message = editText.getText().toString();
+							//							pressButton(null);
+							//							if (1 == 0) {
+							final short[] buffer = modulate(send(message));
+							final int bufferSize = AudioTrack.getMinBufferSize(SAMPLE_RATE, AudioFormat.CHANNEL_OUT_MONO, ENCODING);
 
-								final AudioTrack audioTrack = new AudioTrack(AudioManager.STREAM_MUSIC,
-										SAMPLE_RATE, AudioFormat.CHANNEL_OUT_MONO,
-										ENCODING, bufferSize, AudioTrack.MODE_STREAM);
-								audioTrack.play();
-								while (!Thread.interrupted()) {
-									audioTrack.write(buffer, 0, buffer.length);
-								}
-								audioTrack.stop();
+							final AudioTrack audioTrack = new AudioTrack(AudioManager.STREAM_MUSIC,
+									SAMPLE_RATE, AudioFormat.CHANNEL_OUT_MONO,
+									ENCODING, bufferSize, AudioTrack.MODE_STREAM);
+							audioTrack.play();
+							while (!Thread.interrupted()) {
+								audioTrack.write(buffer, 0, buffer.length);
 							}
+							audioTrack.stop();
+							//							}
 						}
 
 					});
@@ -348,8 +346,9 @@ public class MainActivity extends FragmentActivity {
 						return;
 					}
 
-					final ThresholdingBitParser bitParser = new ThresholdingBitParser(SYMBOL_LENGTH, 4000, SYMBOL_LENGTH/4);
-					final PacketParser packetParser = new PacketParser(PREAMBLE);
+					//					final ThresholdingBitParser bitParser = new ThresholdingBitParser(SYMBOL_LENGTH, 4000, SYMBOL_LENGTH/4);
+					final ThresholdingBitParser bitParser = new ThresholdingBitParser(SYMBOL_LENGTH, 4000, 15);
+					final PacketParser packetParser = new PacketParser();
 
 					final AudioRecord record = new AudioRecord(MediaRecorder.AudioSource.MIC, SAMPLE_RATE, AudioFormat.CHANNEL_IN_MONO, ENCODING, AUDIORECORD_BUFFER_SIZE_IN_BYTES);
 					record.startRecording();
@@ -358,97 +357,143 @@ public class MainActivity extends FragmentActivity {
 
 
 					final int samplesPerWavelength = SAMPLE_RATE / frequency;
-					MinMaxFilter maxWindow = new MinMaxFilter(20); // MAGIC NUMBER
-					RingBuffer maybePreambleSignal = new RingBuffer(SYMBOL_LENGTH*PREAMBLE.length*8);
-					short[] maybePreambleSubset = new short[bitsInPreamble];
+					PreambleFinder preambleFinder = new PreambleFinder(samplesPerWavelength * 2, bitsInPreamble, SYMBOL_LENGTH);
+					//					MinMaxFilter maxWindow = new MinMaxFilter(); // MAGIC NUMBER
+					//					RingBuffer maybePreambleSignal = new RingBuffer(SYMBOL_LENGTH*PREAMBLE.length*8);
+					//					short[] maybePreambleSubset = new short[bitsInPreamble];
 
 					plot.setSkip(1);
+
+					boolean readingPacket = false;
+					int skip = 0;
+					long n = 0;
 
 					while (!Thread.interrupted()) {
 						// Read in new data.
 						int num_read = record.read(newData, 0, newData.length);
 
-						for (int i = 0; i < num_read; ++i) {
+						for (int i = 0; i < num_read; ++i, ++n) {
 							short sample = newData[i];
 
+							if (skip > 0) {
+								--skip;
+								continue;
+							}
+
+							if (readingPacket) {
+
+								BitFetcher.Bit bit = bitParser.putSample((short) Math.abs(sample));
+								byte[] result = null;
+
+								// if we found a bit, send it to the packet parser
+								switch (bit) {
+								case ZERO:
+									result = packetParser.reportBit(0);
+									break;
+								case ONE:
+									result = packetParser.reportBit(1);
+									break;
+								case NOTHING:
+									break; // eh...
+								}
+
+								// if we found a packet, hooray!
+								if (result != null) {
+									String s = new String(result);
+									Log.i("x", "Got packet: '" + s + "'");
+									Message msg = handler.obtainMessage();
+									Bundle bundle = new Bundle();
+									bundle.putString("receivedMessage", s);
+									msg.setData(bundle);
+									handler.sendMessage(msg);
+
+									readingPacket = false;
+								}
+
+							} else {
+
+								PreambleFinder.PreambleResult preamble = preambleFinder.put(sample);
+								if (preamble != null) {
+									Log.i("Some Tag", "New Preamble Found! Threshold: " + preamble.threshold);
+									Log.i("x", "Preamble start: " + n);
+									preambleFinder.clear();
+									bitParser.setThreshold(preamble.threshold);
+									readingPacket = true;
+
+									// We tend to detect the preamble early. This adjustment factor helps.
+									//									skip = SYMBOL_LENGTH/3;
+								}
+
+							}
+
 							// Take 4.
-							maxWindow.put((short)Math.abs(sample));
-							maybePreambleSignal.addElement(maxWindow.max());
-							//							plot.putSample(maxWindow.max());
-
-
-							// Start looking at specific points for highs and lows.
-							int averageAmplitude = 0;
-							for (int j = 0; j < bitsInPreamble; ++j) {
-								short dataPoint = maybePreambleSignal.get(j*SYMBOL_LENGTH);
-								averageAmplitude += dataPoint;
-								maybePreambleSubset[j] = dataPoint;
-							}
-							averageAmplitude /= bitsInPreamble;
-							for (int j = 0; j < maybePreambleSubset.length; ++j) {
-								maybePreambleSubset[j] = (short) ((maybePreambleSubset[j] > averageAmplitude) ? 1 : 0);
-							}
-
-
-							if (matchesPreamble(maybePreambleSubset)) {
-								Log.i("Some Tag", "New Preamble Found! Threshold: " + Integer.toString(averageAmplitude));
-							}
-
-
-
-
-
-							try {
-								rawWriter.write(Integer.toString(Math.abs(sample)));
-								rawWriter.write('\n');
-								writer.write(Short.toString(maxWindow.max()));
-								writer.write('\n');
-							} catch (IOException e) {
-								Log.w("x", "write failed");
-								e.printStackTrace();
-								break;
-							}
+							//							maxWindow.put((short)Math.abs(sample));
+							//							maybePreambleSignal.addElement(maxWindow.max());
+							//							//							plot.putSample(maxWindow.max());
+							//
+							//
+							//							// Start looking at specific points for highs and lows.
+							//							int averageAmplitude = 0;
+							//							for (int j = 0; j < bitsInPreamble; ++j) {
+							//								short dataPoint = maybePreambleSignal.get(j*SYMBOL_LENGTH);
+							//								averageAmplitude += dataPoint;
+							//								maybePreambleSubset[j] = dataPoint;
+							//							}
+							//							averageAmplitude /= bitsInPreamble;
+							//							for (int j = 0; j < maybePreambleSubset.length; ++j) {
+							//								maybePreambleSubset[j] = (short) ((maybePreambleSubset[j] > averageAmplitude) ? 1 : 0);
+							//							}
+							//
+							//
+							//							if (matchesPreamble(maybePreambleSubset)) {
+							//								Log.i("Some Tag", "New Preamble Found! Threshold: " + Integer.toString(averageAmplitude));
+							//							}
 
 
 
 
 
+							//							try {
+							//								rawWriter.write(Integer.toString(Math.abs(sample)));
+							//								rawWriter.write('\n');
+							//								writer.write(Short.toString(preambleFinder.filter.max()));
+							//								writer.write('\n');
+							//							} catch (IOException e) {
+							//								Log.w("x", "write failed");
+							//								e.printStackTrace();
+							//								break;
+							//							}
 
 
 
 
-
-
-
-
-
-							// give the sample to the bit parser
-							Bit bit = bitParser.putSample((short)Math.abs(sample));
-							byte[] result = null;
-
-							// if we found a bit, send it to the packet parser
-							switch (bit) {
-							case ZERO:
-								result = packetParser.reportBit(0);
-								break;
-							case ONE:
-								result = packetParser.reportBit(1);
-								break;
-							case NOTHING:
-								break; // eh...
-							}
-
-							// if we found a packet, hooray!
-							if (result != null) {
-								String s = new String(result);
-								Log.i("x", "Got packet: '" + s + "'");
-
-								Message msg = handler.obtainMessage();
-								Bundle bundle = new Bundle();
-								bundle.putString("receivedMessage", s);
-								msg.setData(bundle);
-								handler.sendMessage(msg);
-							}
+							//							// give the sample to the bit parser
+							//							Bit bit = bitParser.putSample((short)Math.abs(sample));
+							//							byte[] result = null;
+							//
+							//							// if we found a bit, send it to the packet parser
+							//							switch (bit) {
+							//							case ZERO:
+							//								result = packetParser.reportBit(0);
+							//								break;
+							//							case ONE:
+							//								result = packetParser.reportBit(1);
+							//								break;
+							//							case NOTHING:
+							//								break; // eh...
+							//							}
+							//
+							//							// if we found a packet, hooray!
+							//							if (result != null) {
+							//								String s = new String(result);
+							//								Log.i("x", "Got packet: '" + s + "'");
+							//
+							//								Message msg = handler.obtainMessage();
+							//								Bundle bundle = new Bundle();
+							//								bundle.putString("receivedMessage", s);
+							//								msg.setData(bundle);
+							//								handler.sendMessage(msg);
+							//							}
 
 
 							// Visualize incoming data
@@ -665,17 +710,6 @@ public class MainActivity extends FragmentActivity {
 						e.printStackTrace();
 					}
 
-				}
-
-				private boolean matchesPreamble(short[] maybePreambleSubset) {
-					boolean shouldBeZero = false;
-					for (int i = 0; i < maybePreambleSubset.length; ++i) {
-						if (shouldBeZero == (maybePreambleSubset[i]==0))
-							shouldBeZero = !shouldBeZero;
-						else
-							return false;
-					}
-					return true;
 				}
 
 			});

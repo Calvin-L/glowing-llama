@@ -13,7 +13,7 @@ import android.util.Log;
 public class ThresholdingBitParser {
 
 	private final int expectedBitLength;
-	private final int threshold;
+	private int threshold;
 	private final int requiredHighCount;
 
 	/** the number of samples since the start of the last bit */
@@ -45,14 +45,14 @@ public class ThresholdingBitParser {
 	public Bit putSample(short sample) {
 		Bit result = Bit.NOTHING;
 
-		if (sample > threshold) {
+		if (sample > getThreshold()) {
 			// This is a high point!
 			++highCount;
 
 			// Alignment: if it's been a long time since the last high sample,
 			// then we are likely at the start of a bit.
 			// (TODO: 4 is a really arbitrary number)
-			if (samplesSinceLastHighSample > expectedBitLength * 4) {
+			if (samplesSinceLastHighSample > expectedBitLength * 4 / 5) {
 				if (n >= expectedBitLength / 2) {
 					// Hrm... it *kinda* looks like there should be a zero
 					// here since enough low samples have elapsed...
@@ -74,6 +74,9 @@ public class ThresholdingBitParser {
 		// many high samples you found).
 		if (n >= expectedBitLength) {
 			result = highCount > requiredHighCount ? Bit.ONE : Bit.ZERO;
+			if (result == Bit.ONE){
+				Log.i("x", "HC=" + highCount);
+			}
 			n = 0;
 			highCount = 0;
 		}
@@ -88,6 +91,14 @@ public class ThresholdingBitParser {
 		}
 
 		return result;
+	}
+
+	public int getThreshold() {
+		return threshold;
+	}
+
+	public void setThreshold(int threshold) {
+		this.threshold = threshold;
 	}
 
 }

@@ -9,44 +9,26 @@ import android.util.Log;
 /**
  * Given a stream of bits, this class identifies the packet preamble and parses
  * the packet header. The packet contents are returned as a byte array. It acts
- * like a state machine with three states:
+ * like a state machine with two states:
  * <ul>
- * 	<li>waiting for preamble
  *  <li>reading header
  *  <li>reading packet
  * </ul>
  */
 public class PacketParser {
 
-	/** The preamble we're looking for */
-	private final byte[] preamble;
-
 	private enum Mode {
-		WAITING_FOR_PREAMBLE,
 		READING_HEADER,
 		READING_PACKET;
 	}
-	private Mode mode = Mode.WAITING_FOR_PREAMBLE;
+	private Mode mode = Mode.READING_HEADER;
 	private int readLen = 0; // expected packet length when READING_PACKET
 
 	/**
-	 * If mode == WAITING_FOR_PREAMBLE, contains most recent bits (enough to
-	 * identify the preamble).
-	 * Otherwise, empty.
-	 */
-	private final RingBuffer preambleDetection;
-
-	/**
-	 * If mode == WAITING_FOR_PREAMBLE, empty.
 	 * If mode == READING_HEADER, holds header bits.
 	 * If mode == READING_PACKET, holds packet bits.
 	 */
 	private final ArrayList<Integer> bits = new ArrayList<Integer>();
-
-	public PacketParser(byte[] preamble) {
-		this.preamble = preamble;
-		preambleDetection = new RingBuffer(preamble.length * 8);
-	}
 
 	/**
 	 * Called when a bit is observed on the stream.
@@ -58,18 +40,6 @@ public class PacketParser {
 		byte[] result = null;
 
 		switch (mode) {
-		case WAITING_FOR_PREAMBLE:
-			// add this sample to the preamble buffer
-			preambleDetection.addElement((short)i);
-
-			// if the last few bits equal the preamble, transition to the
-			// READING_HEADER state
-			if (preambleFound(preamble, preambleDetection)) {
-				preambleDetection.clear();
-				Log.i("x", "PREAMBLE FOUND!");
-				mode = Mode.READING_HEADER;
-			}
-			break;
 		case READING_HEADER:
 			// add this to the list of bits
 			bits.add(i);
@@ -84,8 +54,8 @@ public class PacketParser {
 					// if the packet is nonempty, transition to READING_PACKET
 					mode = Mode.READING_PACKET;
 				} else {
-					// if the packet is empty, transition back to WAITING_FOR_PREAMBLE
-					mode = Mode.WAITING_FOR_PREAMBLE;
+					// otherwise, emit the empty packet now
+					result = new byte[] { };
 				}
 				// we're done with the header, clear the bits
 				bits.clear();
@@ -99,8 +69,8 @@ public class PacketParser {
 				// convert the bits to bytes
 				result = asBytes(bits);
 				Log.i("x", "PACKET EXTRACTED, BYTES=" + Arrays.toString(result));
-				// transition back to WAITING_FOR_PREAMBLE
-				mode = Mode.WAITING_FOR_PREAMBLE;
+				// transition back to READING_HEADER
+				mode = Mode.READING_HEADER;
 				// clear the bits
 				bits.clear();
 			}
@@ -153,23 +123,4 @@ public class PacketParser {
 		return buf.array();
 	}
 
-	/**
-	 * Does the preamble match the ring buffer?
-	 * @param preamble             the preamble as a byte array
-	 * @param preambleDetection    a ring buffer filled with 0s and 1s
-	 * @return true iff the bits of the preamble match the bits of the ring buffer
-	 */
-	private boolean preambleFound(byte[] preamble, RingBuffer preambleDetection) {
-		int index = 0;
-		for (int b = 0; b < preamble.length; ++b) {
-			for (int i = 7; i >= 0; --i)  {
-				short expected = (short)((preamble[b] >> i) & 1);
-				short real = preambleDetection.get(index);
-				if (real != expected)
-					return false;
-				++index;
-			}
-		}
-		return true;
-	}
 }
